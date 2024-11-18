@@ -33,6 +33,7 @@ pub async fn client_block(
     }
 }
 
+/// From the given node list, returns the node that is the leader for the given key.
 fn leader_node_for_key(node_list: &[PeerNode], key: u64) -> PeerNode {
     // node list always contains at least this node itself
     if node_list.is_empty() {
@@ -43,9 +44,42 @@ fn leader_node_for_key(node_list: &[PeerNode], key: u64) -> PeerNode {
     // or the largest node if other not found
     let leader_node = node_list
         .iter()
-        .filter(|node| node.id >= key)
-        .min_by_key(|node| node.id)
-        .unwrap_or_else(|| node_list.first().unwrap());
+        .filter(|node| node.id >= key) // list of nodes with greater id
+        .min_by_key(|node| node.id) // take the node with smallest id
+        .unwrap_or_else(|| {
+            // no nodes with greater id, fall back to the largest node
+            node_list.iter().max_by_key(|node| node.id).unwrap()
+        });
 
     (*leader_node).clone()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn leader_node_selection() {
+        let node_list = vec![
+            PeerNode {
+                id: 5,
+                ip_address: "192.168.0.5".to_string(),
+            },
+            PeerNode {
+                id: 12,
+                ip_address: "192.168.0.12".to_string(),
+            },
+            PeerNode {
+                id: 25,
+                ip_address: "192.168.0.25".to_string(),
+            },
+        ];
+
+        assert_eq!(leader_node_for_key(&node_list, 3).id, 5);
+        assert_eq!(leader_node_for_key(&node_list, 5).id, 5);
+        assert_eq!(leader_node_for_key(&node_list, 6).id, 12);
+        assert_eq!(leader_node_for_key(&node_list, 24).id, 25);
+        assert_eq!(leader_node_for_key(&node_list, 25).id, 25);
+        assert_eq!(leader_node_for_key(&node_list, 26).id, 25);
+    }
 }
