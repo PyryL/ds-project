@@ -1,4 +1,5 @@
 use std::io::Result;
+use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tokio_stream::wrappers::ReceiverStream;
@@ -31,11 +32,12 @@ pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {
     tokio::task::spawn(async move {
         let listener = TcpListener::bind("0.0.0.0:52525").await.unwrap();
 
-        while let Ok((mut stream, _address)) = listener.accept().await {
+        while let Ok((mut stream, address)) = listener.accept().await {
             let mut incoming_message: Vec<u8> = Vec::new();
             stream.read_to_end(&mut incoming_message).await.unwrap();
             let incoming_connection = IncomingConnection {
                 message: incoming_message,
+                address,
                 stream,
             };
             tx.send(incoming_connection).await.unwrap();
@@ -47,6 +49,7 @@ pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {
 
 pub struct IncomingConnection {
     pub message: Vec<u8>,
+    pub address: SocketAddr,
     stream: TcpStream,
 }
 

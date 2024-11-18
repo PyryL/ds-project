@@ -22,6 +22,8 @@ pub async fn leader_block(
         }
         let key = u64::from_be_bytes(connection.message[1..9].try_into().unwrap());
 
+        println!("reading value key={} for {}", key, connection.address);
+
         let value = leader_storage.get(&key).unwrap_or(&default_value).clone();
         let value_length_bytes = (value.len() as u32).to_be_bytes().to_vec();
 
