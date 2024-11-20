@@ -1,4 +1,4 @@
-use crate::communication::{send_message, IncomingConnection};
+use crate::communication::{send_message, send_message_without_closing, IncomingConnection};
 use crate::PeerNode;
 use tokio::sync::mpsc;
 
@@ -7,30 +7,65 @@ pub async fn client_block(
     node_list: &[PeerNode],
 ) {
     while let Some((client_connection, message)) = incoming_connection_stream.recv().await {
-        // TODO: also handle write requests
         // TODO: handle requests in parallel
-
-        // at this point, the first byte of connection.message is `200`
-        if message.len() != 13 {
-            println!("received invalid request from a client, dropping");
-            continue;
-        }
-        let key = u64::from_be_bytes(message[5..13].try_into().unwrap());
-
-        // forward the request to the leader node
-        let leader_node = leader_node_for_key(node_list, key);
-        println!(
-            "forwarding read request {} -> {}",
-            client_connection.address, leader_node.ip_address
-        );
-        let forwarded_message = [vec![1, 0, 0, 0, 13], key.to_be_bytes().to_vec()].concat();
-        let leader_response = send_message(leader_node.ip_address, &forwarded_message)
-            .await
-            .unwrap();
-
-        // forward response to the client
-        client_connection.respond(&leader_response).await;
+        match message.first() {
+            Some(200) => forward_read_request(client_connection, message, node_list).await,
+            Some(202) => forward_write_request(client_connection, message, node_list).await,
+            _ => {},
+        };
     }
+}
+
+async fn forward_read_request(client_connection: IncomingConnection, message: Vec<u8>, node_list: &[PeerNode]) {
+    // at this point, the first byte of connection.message is `200`
+    if message.len() != 13 {
+        println!("received invalid request from a client, dropping");
+        return;
+    }
+    let key = u64::from_be_bytes(message[5..13].try_into().unwrap());
+
+    // forward the request to the leader node
+    let leader_node = leader_node_for_key(node_list, key);
+    println!(
+        "forwarding read request {} -> {}",
+        client_connection.address, leader_node.ip_address
+    );
+    let forwarded_message = [vec![1, 0, 0, 0, 13], key.to_be_bytes().to_vec()].concat();
+    let leader_response = send_message(leader_node.ip_address, &forwarded_message)
+        .await
+        .unwrap();
+
+    // forward response to the client
+    client_connection.respond(&leader_response).await;
+}
+
+async fn forward_write_request(mut client_connection: IncomingConnection, message: Vec<u8>, node_list: &[PeerNode]) {
+    // at this point, the first byte of message is `202`
+    if message.len() != 13 {
+        println!("received invalid type=202 request from a client, dropping");
+        return;
+    }
+    let key = u64::from_be_bytes(message[5..13].try_into().unwrap());
+
+    // forward request to the leader node
+    let leader_node = leader_node_for_key(node_list, key);
+    println!("forwarding write request {} -> {}", client_connection.address, leader_node.ip_address);
+    let forwarded_message = [vec![2, 0, 0, 0, 13], key.to_be_bytes().to_vec()].concat();
+    let mut leader_connection = send_message_without_closing(leader_node.ip_address, &forwarded_message).await;
+
+    // wait for and forward the write permission
+    let permission_msg = leader_connection.read_message().await;
+    client_connection.respond_without_closing(&permission_msg).await;
+
+    // wait for and forward the write command message
+    let write_command_message = client_connection.read_message().await;
+    leader_connection.respond_without_closing(&write_command_message).await;
+
+    // wait for and forward the acknowledgement
+    let ack_message = leader_connection.read_message().await;
+    client_connection.respond(&ack_message).await;
+
+    println!("read request forwarding ended");
 }
 
 /// From the given node list, returns the node that is the leader for the given key.

@@ -22,6 +22,20 @@ pub async fn send_message(peer_ip_address: String, message: &[u8]) -> Result<Vec
     Ok(response)
 }
 
+pub async fn send_message_without_closing(peer_ip_address: String, message: &[u8]) -> IncomingConnection {
+    let peer_address = format!("{}:52525", peer_ip_address).to_socket_addrs().unwrap().next().unwrap();
+
+    let client = TcpSocket::new_v4().unwrap();
+    let mut stream = client.connect(peer_address).await.unwrap();
+
+    stream.write_all(message).await.unwrap();
+
+    IncomingConnection {
+        address: peer_address,
+        stream,
+    }
+}
+
 /// Infinitely listens to incoming connections.
 /// For every connection, sends `IncomingConnection` to the returned stream.
 pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {

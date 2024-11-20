@@ -40,7 +40,7 @@ pub async fn start_node(node_id: u64, mut node_list: Vec<PeerNode>) {
         match message.first() {
             Some(1) | Some(2) => leader_sender.send((connection, message)).unwrap(),
 
-            Some(200) => client_sender.send((connection, message)).unwrap(),
+            Some(200) | Some(202) => client_sender.send((connection, message)).unwrap(),
 
             _ => println!("received invalid message, dropping"),
         };
