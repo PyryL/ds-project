@@ -23,20 +23,15 @@ pub async fn send_message(peer_ip_address: String, message: &[u8]) -> Result<Vec
 }
 
 /// Infinitely listens to incoming connections.
-/// For every connection, pushes `(message, stream)` tuple to the returned stream
-/// where message is the received message and stream is the TCP stream with which
-/// response can be sent.
+/// For every connection, sends `IncomingConnection` to the returned stream.
 pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {
     let (tx, rx) = tokio::sync::mpsc::channel(1);
 
     tokio::task::spawn(async move {
         let listener = TcpListener::bind("0.0.0.0:52525").await.unwrap();
 
-        while let Ok((mut stream, address)) = listener.accept().await {
-            let mut incoming_message: Vec<u8> = Vec::new();
-            stream.read_to_end(&mut incoming_message).await.unwrap();
+        while let Ok((stream, address)) = listener.accept().await {
             let incoming_connection = IncomingConnection {
-                message: incoming_message,
                 address,
                 stream,
             };
@@ -48,12 +43,27 @@ pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {
 }
 
 pub struct IncomingConnection {
-    pub message: Vec<u8>,
     pub address: SocketAddr,
     stream: TcpStream,
 }
 
 impl IncomingConnection {
+    /// Reads and returns the next message from the stream.
+    /// Panics if there is no message to be read or if it is malformed.
+    pub async fn read_message(&mut self) -> Vec<u8> {
+        let mut header = [0u8; 5];
+
+        self.stream.read_exact(&mut header).await.unwrap();
+
+        let message_length = u32::from_be_bytes(header[1..5].try_into().unwrap());
+
+        let mut payload = vec![0; (message_length-5) as usize];
+
+        self.stream.read_exact(&mut payload).await.unwrap();
+
+        [header.to_vec(), payload].concat()
+    }
+
     /// Sends the given response and closes the connection.
     pub async fn respond(mut self, message: &[u8]) {
         self.stream.write_all(message).await.unwrap();

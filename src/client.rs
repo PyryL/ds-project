@@ -3,19 +3,19 @@ use crate::PeerNode;
 use tokio::sync::mpsc;
 
 pub async fn client_block(
-    mut incoming_connection_stream: mpsc::UnboundedReceiver<IncomingConnection>,
+    mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
     node_list: &[PeerNode],
 ) {
-    while let Some(client_connection) = incoming_connection_stream.recv().await {
+    while let Some((client_connection, message)) = incoming_connection_stream.recv().await {
         // TODO: also handle write requests
         // TODO: handle requests in parallel
 
         // at this point, the first byte of connection.message is `200`
-        if client_connection.message.len() != 9 {
+        if message.len() != 13 {
             println!("received invalid request from a client, dropping");
             continue;
         }
-        let key = u64::from_be_bytes(client_connection.message[1..9].try_into().unwrap());
+        let key = u64::from_be_bytes(message[5..13].try_into().unwrap());
 
         // forward the request to the leader node
         let leader_node = leader_node_for_key(node_list, key);
@@ -23,7 +23,7 @@ pub async fn client_block(
             "forwarding read request {} -> {}",
             client_connection.address, leader_node.ip_address
         );
-        let forwarded_message = [vec![1u8], key.to_be_bytes().to_vec()].concat();
+        let forwarded_message = [vec![1, 0, 0, 0, 13], key.to_be_bytes().to_vec()].concat();
         let leader_response = send_message(leader_node.ip_address, &forwarded_message)
             .await
             .unwrap();

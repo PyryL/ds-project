@@ -34,11 +34,13 @@ pub async fn start_node(node_id: u64, mut node_list: Vec<PeerNode>) {
 
     let mut incoming_connections_stream = listen_messages().await;
 
-    while let Some(connection) = incoming_connections_stream.next().await {
-        match connection.message.first() {
-            Some(1) => leader_sender.send(connection).unwrap(),
+    while let Some(mut connection) = incoming_connections_stream.next().await {
+        let message = connection.read_message().await;
 
-            Some(200) => client_sender.send(connection).unwrap(),
+        match message.first() {
+            Some(1) => leader_sender.send((connection, message)).unwrap(),
+
+            Some(200) => client_sender.send((connection, message)).unwrap(),
 
             _ => println!("received invalid message, dropping"),
         };
