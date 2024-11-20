@@ -7,12 +7,15 @@ pub async fn client_block(
     node_list: &[PeerNode],
 ) {
     while let Some((client_connection, message)) = incoming_connection_stream.recv().await {
-        // TODO: handle requests in parallel
-        match message.first() {
-            Some(200) => forward_read_request(client_connection, message, node_list).await,
-            Some(202) => forward_write_request(client_connection, message, node_list).await,
-            _ => {},
-        };
+        // TODO: make node_list mutex and pass the reference instead of clone
+        let node_list_clone = node_list.to_vec();
+        tokio::task::spawn(async move {
+            match message.first() {
+                Some(200) => forward_read_request(client_connection, message, &node_list_clone).await,
+                Some(202) => forward_write_request(client_connection, message, &node_list_clone).await,
+                _ => {},
+            };
+        });
     }
 }
 
@@ -65,7 +68,7 @@ async fn forward_write_request(mut client_connection: IncomingConnection, messag
     let ack_message = leader_connection.read_message().await;
     client_connection.respond(&ack_message).await;
 
-    println!("read request forwarding ended");
+    println!("write request forwarding ended");
 }
 
 /// From the given node list, returns the node that is the leader for the given key.
