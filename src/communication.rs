@@ -1,5 +1,5 @@
 use std::io::Result;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tokio_stream::wrappers::ReceiverStream;
@@ -8,7 +8,7 @@ use tokio_stream::Stream;
 /// Sends the given message to the given peer.
 /// Returns the response.
 pub async fn send_message(peer_ip_address: String, message: &[u8]) -> Result<Vec<u8>> {
-    let peer_address = format!("{}:52525", peer_ip_address).parse().unwrap();
+    let peer_address = format!("{}:52525", peer_ip_address).to_socket_addrs().unwrap().next().unwrap();
 
     let client = TcpSocket::new_v4().unwrap();
     let mut stream = client.connect(peer_address).await?;
