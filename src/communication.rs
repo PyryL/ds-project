@@ -69,4 +69,8 @@ impl IncomingConnection {
         self.stream.write_all(message).await.unwrap();
         self.stream.shutdown().await.unwrap();
     }
+
+    pub async fn respond_without_closing(&mut self, message: &[u8]) {
+        self.stream.write_all(message).await.unwrap();
+    }
 }

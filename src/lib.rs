@@ -38,7 +38,7 @@ pub async fn start_node(node_id: u64, mut node_list: Vec<PeerNode>) {
         let message = connection.read_message().await;
 
         match message.first() {
-            Some(1) => leader_sender.send((connection, message)).unwrap(),
+            Some(1) | Some(2) => leader_sender.send((connection, message)).unwrap(),
 
             Some(200) => client_sender.send((connection, message)).unwrap(),
 
