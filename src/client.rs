@@ -1,4 +1,4 @@
-use crate::communication::{send_message, send_message_without_closing, IncomingConnection};
+use crate::communication::IncomingConnection;
 use crate::PeerNode;
 use tokio::sync::mpsc;
 
@@ -19,7 +19,7 @@ pub async fn client_block(
     }
 }
 
-async fn forward_read_request(client_connection: IncomingConnection, message: Vec<u8>, node_list: &[PeerNode]) {
+async fn forward_read_request(mut client_connection: IncomingConnection, message: Vec<u8>, node_list: &[PeerNode]) {
     // at this point, the first byte of connection.message is `200`
     if message.len() != 13 {
         println!("received invalid request from a client, dropping");
@@ -34,12 +34,14 @@ async fn forward_read_request(client_connection: IncomingConnection, message: Ve
         client_connection.address, leader_node.ip_address
     );
     let forwarded_message = [vec![1, 0, 0, 0, 13], key.to_be_bytes().to_vec()].concat();
-    let leader_response = send_message(leader_node.ip_address, &forwarded_message)
+    let leader_response = IncomingConnection::new(leader_node.ip_address, &forwarded_message)
         .await
-        .unwrap();
+        .unwrap()
+        .read_message()
+        .await;
 
     // forward response to the client
-    client_connection.respond(&leader_response).await;
+    client_connection.send_message(&leader_response).await;
 }
 
 async fn forward_write_request(mut client_connection: IncomingConnection, message: Vec<u8>, node_list: &[PeerNode]) {
@@ -54,19 +56,19 @@ async fn forward_write_request(mut client_connection: IncomingConnection, messag
     let leader_node = leader_node_for_key(node_list, key);
     println!("forwarding write request {} -> {}", client_connection.address, leader_node.ip_address);
     let forwarded_message = [vec![2, 0, 0, 0, 13], key.to_be_bytes().to_vec()].concat();
-    let mut leader_connection = send_message_without_closing(leader_node.ip_address, &forwarded_message).await;
+    let mut leader_connection = IncomingConnection::new(leader_node.ip_address, &forwarded_message).await.unwrap();
 
     // wait for and forward the write permission
     let permission_msg = leader_connection.read_message().await;
-    client_connection.respond_without_closing(&permission_msg).await;
+    client_connection.send_message(&permission_msg).await;
 
     // wait for and forward the write command message
     let write_command_message = client_connection.read_message().await;
-    leader_connection.respond_without_closing(&write_command_message).await;
+    leader_connection.send_message(&write_command_message).await;
 
     // wait for and forward the acknowledgement
     let ack_message = leader_connection.read_message().await;
-    client_connection.respond(&ack_message).await;
+    client_connection.send_message(&ack_message).await;
 
     println!("write request forwarding ended");
 }

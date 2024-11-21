@@ -19,7 +19,7 @@ pub async fn leader_block(
     }
 }
 
-async fn handle_read_request(connection: IncomingConnection, message: Vec<u8>, storage: &HashMap<u64, Vec<u8>>) {
+async fn handle_read_request(mut connection: IncomingConnection, message: Vec<u8>, storage: &HashMap<u64, Vec<u8>>) {
     // at this point, first byte of connection.message is `1`
     if message.len() != 13 {
         println!("received invalid type=1 message, dropping");
@@ -34,7 +34,7 @@ async fn handle_read_request(connection: IncomingConnection, message: Vec<u8>, s
 
     let response_length = 5 + value.len() as u32;
     let response = [vec![0], response_length.to_be_bytes().to_vec(), value].concat();
-    connection.respond(&response).await;
+    connection.send_message(&response).await;
 }
 
 async fn handle_write_request(mut connection: IncomingConnection, first_message: Vec<u8>, storage: &mut HashMap<u64, Vec<u8>>) {
@@ -54,7 +54,7 @@ async fn handle_write_request(mut connection: IncomingConnection, first_message:
 
     let permission_msg_length = 5 + old_value.len() as u32;
     let permission_message = [vec![0], permission_msg_length.to_be_bytes().to_vec(), old_value].concat();
-    connection.respond_without_closing(&permission_message).await;
+    connection.send_message(&permission_message).await;
 
     // read the new value
     let write_command_message = connection.read_message().await;
@@ -75,5 +75,5 @@ async fn handle_write_request(mut connection: IncomingConnection, first_message:
     storage.insert(key, new_value.to_vec());
 
     // respond acknowledgement
-    connection.respond(&[0, 0, 0, 0, 7, 111, 107]).await;
+    connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
