@@ -2,7 +2,7 @@ use std::io::Result;
 use std::net::{SocketAddr, ToSocketAddrs};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream};
-use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::Stream;
 
 /// Sends the given message to the given peer.
@@ -39,7 +39,7 @@ pub async fn send_message_without_closing(peer_ip_address: String, message: &[u8
 /// Infinitely listens to incoming connections.
 /// For every connection, sends `IncomingConnection` to the returned stream.
 pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {
-    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     tokio::task::spawn(async move {
         let listener = TcpListener::bind("0.0.0.0:52525").await.unwrap();
@@ -49,11 +49,11 @@ pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {
                 address,
                 stream,
             };
-            tx.send(incoming_connection).await.unwrap();
+            tx.send(incoming_connection).unwrap();
         }
     });
 
-    ReceiverStream::new(rx)
+    UnboundedReceiverStream::new(rx)
 }
 
 pub struct IncomingConnection {
