@@ -8,5 +8,6 @@ name = "ds-project"
 path = "src/main.rs"
 
 [dependencies]
+rand = "0.8.5"
 tokio = { version = "1.41.1", features = ["full"] }
 tokio-stream = "0.1.16"

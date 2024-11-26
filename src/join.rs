@@ -1,11 +1,13 @@
 use crate::communication::IncomingConnection;
 use crate::PeerNode;
+use rand::{thread_rng, Rng};
 
 pub async fn run_join_procedure(known_node_ip_address: &str) -> Vec<PeerNode> {
     let mut node_list = request_node_list(known_node_ip_address).await;
 
-    // TODO: randomize or use algorithm to choose this
-    let node_id = 1234;
+    let node_id = thread_rng().gen();
+
+    println!("using node id {}", node_id);
 
     // add this node itself to the list of nodes
     node_list.push(PeerNode {
