@@ -1,10 +1,11 @@
-use std::sync::Arc;
 use communication::listen_messages;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 
 mod client;
 mod communication;
+mod join;
 mod leader;
 mod peer;
 
@@ -14,15 +15,18 @@ pub struct PeerNode {
     pub ip_address: String,
 }
 
-pub async fn start_node(node_id: u64, mut node_list: Vec<PeerNode>) {
-    println!("starting node ID={} with peers {:?}", node_id, node_list);
-
-    // add this node itself to the list of nodes
+pub async fn start_node(known_node_ip_address: Option<String>) {
     // TODO: convert node list into mutex
-    node_list.push(PeerNode {
-        id: node_id,
-        ip_address: "127.0.0.1".to_string(),
-    });
+    let node_list = match known_node_ip_address {
+        Some(ip_address) => {
+            println!("starting the node...");
+            join::run_join_procedure(&ip_address).await
+        }
+        None => {
+            println!("starting without a known node");
+            Vec::new()
+        }
+    };
 
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();
     let leader_sender = Arc::new(leader_sender);
