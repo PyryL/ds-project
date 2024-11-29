@@ -7,9 +7,6 @@ pub async fn leader_block(
 ) {
     let mut leader_storage: HashMap<u64, Vec<u8>> = HashMap::new();
 
-    // some test values, remove later
-    leader_storage.insert(42, b"hello world".to_vec());
-
     while let Some((connection, first_message)) = incoming_connection_stream.recv().await {
         match first_message.first() {
             Some(1) => handle_read_request(connection, first_message, &leader_storage).await,

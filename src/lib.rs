@@ -17,18 +17,7 @@ pub struct PeerNode {
 
 pub async fn start_node(known_node_ip_address: Option<String>) {
     // TODO: convert node list into mutex
-    let (node_list, initial_leader_kv_pairs) = match known_node_ip_address {
-        Some(ip_address) => {
-            println!("starting the node...");
-            join::run_join_procedure(&ip_address).await
-        }
-        None => {
-            println!("starting without a known node");
-            (vec![PeerNode { id: 1234, ip_address: "127.0.0.1".to_string() }], Vec::new())
-        }
-    };
-
-    // TODO: if starting without known node, node_list does not contain this node itself
+    let (node_list, initial_leader_kv_pairs) = join::run_join_procedure(known_node_ip_address.as_deref()).await;
 
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();
     let leader_sender = Arc::new(leader_sender);

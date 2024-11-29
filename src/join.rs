@@ -4,8 +4,11 @@ use rand::{thread_rng, Rng};
 use std::ops::RangeInclusive;
 
 /// Returns node list and initial leader key-value pairs.
-pub async fn run_join_procedure(known_node_ip_address: &str) -> (Vec<PeerNode>, Vec<(u64, Vec<u8>)>) {
-    let mut node_list = request_node_list(known_node_ip_address).await;
+pub async fn run_join_procedure(known_node_ip_address: Option<&str>) -> (Vec<PeerNode>, Vec<(u64, Vec<u8>)>) {
+    let mut node_list = match known_node_ip_address {
+        Some(ip_address) => request_node_list(ip_address).await,
+        None => Vec::new(),
+    };
 
     let node_id = thread_rng().gen();
 
