@@ -134,7 +134,7 @@ async fn request_primary_kv_pairs(this_node_id: u64, smaller_neighbor: &PeerNode
         let value_length = u32::from_be_bytes(response[i + 8..i + 12].try_into().unwrap()) as usize;
         let value = &response[i + 12..i + 12 + value_length];
         kv_pairs.push((key, value.to_vec()));
-        i += value_length + 5;
+        i += value_length + 12;
     }
 
     kv_pairs
