@@ -1,6 +1,6 @@
 use communication::listen_messages;
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 use tokio_stream::StreamExt;
 
 mod client;
@@ -16,8 +16,8 @@ pub struct PeerNode {
 }
 
 pub async fn start_node(known_node_ip_address: Option<String>) {
-    // TODO: convert node list into mutex
     let (node_list, initial_leader_kv_pairs) = join::run_join_procedure(known_node_ip_address.as_deref()).await;
+    let node_list = Arc::new(Mutex::new(node_list));
 
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();
     let leader_sender = Arc::new(leader_sender);
@@ -27,16 +27,16 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
 
     let (client_sender, client_receiver) = mpsc::unbounded_channel();
     let client_sender = Arc::new(client_sender);
-    let node_list_clone = node_list.clone();
+    let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        client::client_block(client_receiver, &node_list_clone).await;
+        client::client_block(client_receiver, node_list_clone).await;
     });
 
     let (peer_sender, peer_receiver) = mpsc::unbounded_channel();
     let peer_sender = Arc::new(peer_sender);
-    let node_list_clone = node_list.clone();
+    let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        peer::peer_block(peer_receiver, &node_list_clone).await;
+        peer::peer_block(peer_receiver, node_list_clone).await;
     });
 
     let mut incoming_connections_stream = listen_messages().await;

@@ -1,13 +1,15 @@
 use crate::{communication::IncomingConnection, PeerNode};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
+use std::sync::Arc;
 
 pub async fn peer_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
-    node_list: &Vec<PeerNode>,
+    node_list: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     while let Some((connection, _message)) = incoming_connection_stream.recv().await {
         // at this point the message is [10, 0, 0, 0, 5]
-        handle_node_list_request(connection, node_list).await;
+        let node_list_access = node_list.lock().await;
+        handle_node_list_request(connection, &node_list_access).await;
     }
 }
 

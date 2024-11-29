@@ -1,18 +1,21 @@
 use crate::communication::IncomingConnection;
 use crate::PeerNode;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
+use std::sync::Arc;
 
 pub async fn client_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
-    node_list: &[PeerNode],
+    node_list: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     while let Some((client_connection, message)) = incoming_connection_stream.recv().await {
-        // TODO: make node_list mutex and pass the reference instead of clone
-        let node_list_clone = node_list.to_vec();
+        let node_list_clone = Arc::clone(&node_list);
+
         tokio::task::spawn(async move {
+            let node_list = node_list_clone.lock().await;
+
             match message.first() {
-                Some(200) => forward_read_request(client_connection, message, &node_list_clone).await,
-                Some(202) => forward_write_request(client_connection, message, &node_list_clone).await,
+                Some(200) => forward_read_request(client_connection, message, &node_list).await,
+                Some(202) => forward_write_request(client_connection, message, &node_list).await,
                 _ => {},
             };
         });
