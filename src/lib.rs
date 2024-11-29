@@ -21,10 +21,8 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
 
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();
     let leader_sender = Arc::new(leader_sender);
-    println!("initial leader kv-pairs {:?}", initial_leader_kv_pairs);
     tokio::task::spawn(async move {
-        // TODO: pass initial_leader_kv_pairs to leader block
-        leader::leader_block(leader_receiver).await;
+        leader::leader_block(leader_receiver, initial_leader_kv_pairs).await;
     });
 
     let (client_sender, client_receiver) = mpsc::unbounded_channel();

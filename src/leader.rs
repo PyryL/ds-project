@@ -4,8 +4,15 @@ use tokio::sync::mpsc;
 
 pub async fn leader_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
+    initial_kv_pairs: Vec<(u64, Vec<u8>)>,
 ) {
     let mut leader_storage: HashMap<u64, Vec<u8>> = HashMap::new();
+
+    println!("leader block starting with initial kv-pairs {:?}", initial_kv_pairs);
+
+    for (key, value) in initial_kv_pairs {
+        leader_storage.insert(key, value);
+    }
 
     while let Some((connection, first_message)) = incoming_connection_stream.recv().await {
         match first_message.first() {
