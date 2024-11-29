@@ -25,7 +25,10 @@ pub async fn run_join_procedure(known_node_ip_address: Option<&str>) -> (Vec<Pee
 
     // TODO: request backup key-value pairs
 
-    // TODO: send information to everybody that this node has joined
+    // TODO: parallelize
+    for peer_node in node_list.iter() {
+        announce_joining(node_id, &peer_node.ip_address).await;
+    }
 
     // add this node itself to the list of nodes
     node_list.push(PeerNode {
@@ -120,4 +123,16 @@ async fn request_primary_kv_pairs(neighbor: &PeerNode, key_range: RangeInclusive
     }
 
     kv_pairs
+}
+
+async fn announce_joining(this_node_id: u64, peer_node_ip_address: &str) {
+    let request = [vec![13, 0, 0, 0, 13], this_node_id.to_be_bytes().to_vec()].concat();
+
+    let mut connection = IncomingConnection::new(peer_node_ip_address.to_string(), &request).await.unwrap();
+
+    let response = connection.read_message().await;
+
+    if response != vec![0, 0, 0, 0, 7, 111, 107] {
+        println!("received invalid ack to join announcement from {}, ignoring", peer_node_ip_address);
+    }
 }

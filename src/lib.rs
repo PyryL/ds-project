@@ -51,7 +51,7 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
 
             match message.first() {
                 Some(1) | Some(2) | Some(11) => leader_sender_clone.send((connection, message)).unwrap(),
-                Some(10) => peer_sender_clone.send((connection, message)).unwrap(),
+                Some(10) | Some(13) => peer_sender_clone.send((connection, message)).unwrap(),
                 Some(200) | Some(202) => client_sender_clone.send((connection, message)).unwrap(),
                 _ => println!("received invalid message, dropping"),
             };

@@ -99,3 +99,17 @@ The response:
     * the key, 8 big-endian bytes
     * value length, four big-endian bytes
     * the value
+
+
+
+The announcement from the joining node to every other node:
+
+* message type, one byte, value `13`
+* message total length, four big-endian bytes (value always `13`)
+* ID of the joining node, 8 big-endian bytes
+
+The acknowledgement response from another node to the joining node:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
