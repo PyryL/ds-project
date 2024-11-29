@@ -80,3 +80,22 @@ The response:
 The list of nodes in the response does contain the responding known node itself
 with IP address `127.0.0.1` and it is up to the joining node to replace that with something useful.
 The joining node is not included in the list.
+
+
+
+Request from the joining node to its greater neighbor
+requesting the primary key-value pairs:
+
+* message type, one byte, value `11`
+* message total length, four big-endian bytes (value always `21`)
+* inclusive lower bound of the IDs to transfer, 8 big-endian bytes
+* inclusive upper bound of the IDs to transfer, 8 big-endian bytes
+
+The response:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes
+* zero or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value

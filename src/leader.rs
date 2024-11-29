@@ -14,6 +14,7 @@ pub async fn leader_block(
         match first_message.first() {
             Some(1) => handle_read_request(connection, first_message, &leader_storage).await,
             Some(2) => handle_write_request(connection, first_message, &mut leader_storage).await,
+            Some(11) => handle_transfer_request(connection, first_message, &mut leader_storage).await,
             _ => panic!(),
         };
     }
@@ -76,4 +77,32 @@ async fn handle_write_request(mut connection: IncomingConnection, first_message:
 
     // respond acknowledgement
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
+}
+
+async fn handle_transfer_request(mut connection: IncomingConnection, message: Vec<u8>, storage: &mut HashMap<u64, Vec<u8>>) {
+    // at this point, the first byte of message is 11
+    if u32::from_be_bytes(message[1..5].try_into().unwrap()) != 21 || message.len() != 21 {
+        println!("receiving invalid transfer request, dropping");
+        return;
+    }
+
+    let key_lower_bound = u64::from_be_bytes(message[5..13].try_into().unwrap());
+    let key_upper_bound = u64::from_be_bytes(message[13..21].try_into().unwrap());
+
+    println!("transfering leader keys {}..{} to {}", key_lower_bound, key_upper_bound, connection.address);
+
+    let mut response_payload = Vec::new();
+
+    for key in key_lower_bound..=key_upper_bound {
+        if let Some(value) = storage.remove(&key) {
+            response_payload.extend_from_slice(&key.to_be_bytes());
+            response_payload.extend_from_slice(&(value.len() as u32).to_be_bytes());
+            response_payload.extend_from_slice(&value);
+        }
+    }
+
+    let response_length_bytes = (5 + response_payload.len() as u32).to_be_bytes();
+    let response = [vec![0], response_length_bytes.to_vec(), response_payload].concat();
+
+    connection.send_message(&response).await;
 }

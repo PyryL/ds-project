@@ -17,20 +17,24 @@ pub struct PeerNode {
 
 pub async fn start_node(known_node_ip_address: Option<String>) {
     // TODO: convert node list into mutex
-    let node_list = match known_node_ip_address {
+    let (node_list, initial_leader_kv_pairs) = match known_node_ip_address {
         Some(ip_address) => {
             println!("starting the node...");
             join::run_join_procedure(&ip_address).await
         }
         None => {
             println!("starting without a known node");
-            Vec::new()
+            (vec![PeerNode { id: 1234, ip_address: "127.0.0.1".to_string() }], Vec::new())
         }
     };
 
+    // TODO: if starting without known node, node_list does not contain this node itself
+
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();
     let leader_sender = Arc::new(leader_sender);
+    println!("initial leader kv-pairs {:?}", initial_leader_kv_pairs);
     tokio::task::spawn(async move {
+        // TODO: pass initial_leader_kv_pairs to leader block
         leader::leader_block(leader_receiver).await;
     });
 
@@ -59,7 +63,7 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
             let message = connection.read_message().await;
 
             match message.first() {
-                Some(1) | Some(2) => leader_sender_clone.send((connection, message)).unwrap(),
+                Some(1) | Some(2) | Some(11) => leader_sender_clone.send((connection, message)).unwrap(),
                 Some(10) => peer_sender_clone.send((connection, message)).unwrap(),
                 Some(200) | Some(202) => client_sender_clone.send((connection, message)).unwrap(),
                 _ => println!("received invalid message, dropping"),
