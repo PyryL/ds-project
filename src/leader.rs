@@ -8,7 +8,10 @@ pub async fn leader_block(
 ) {
     let mut leader_storage: HashMap<u64, Vec<u8>> = HashMap::new();
 
-    println!("leader block starting with initial kv-pairs {:?}", initial_kv_pairs);
+    println!(
+        "leader block starting with initial kv-pairs {:?}",
+        initial_kv_pairs
+    );
 
     for (key, value) in initial_kv_pairs {
         leader_storage.insert(key, value);
@@ -18,13 +21,19 @@ pub async fn leader_block(
         match first_message.first() {
             Some(1) => handle_read_request(connection, first_message, &leader_storage).await,
             Some(2) => handle_write_request(connection, first_message, &mut leader_storage).await,
-            Some(11) => handle_transfer_request(connection, first_message, &mut leader_storage).await,
+            Some(11) => {
+                handle_transfer_request(connection, first_message, &mut leader_storage).await
+            }
             _ => panic!(),
         };
     }
 }
 
-async fn handle_read_request(mut connection: IncomingConnection, message: Vec<u8>, storage: &HashMap<u64, Vec<u8>>) {
+async fn handle_read_request(
+    mut connection: IncomingConnection,
+    message: Vec<u8>,
+    storage: &HashMap<u64, Vec<u8>>,
+) {
     // at this point, first byte of connection.message is `1`
     if message.len() != 13 {
         println!("received invalid type=1 message, dropping");
@@ -42,7 +51,11 @@ async fn handle_read_request(mut connection: IncomingConnection, message: Vec<u8
     connection.send_message(&response).await;
 }
 
-async fn handle_write_request(mut connection: IncomingConnection, first_message: Vec<u8>, storage: &mut HashMap<u64, Vec<u8>>) {
+async fn handle_write_request(
+    mut connection: IncomingConnection,
+    first_message: Vec<u8>,
+    storage: &mut HashMap<u64, Vec<u8>>,
+) {
     // at this point the first byte of first_message is `2`
     let total_length_header = u32::from_be_bytes(first_message[1..5].try_into().unwrap());
     if first_message.len() != 13 || total_length_header != 13 {
@@ -51,14 +64,22 @@ async fn handle_write_request(mut connection: IncomingConnection, first_message:
     }
     let key = u64::from_be_bytes(first_message[5..13].try_into().unwrap());
 
-    println!("granting write permission for key={} for {}", key, connection.address);
+    println!(
+        "granting write permission for key={} for {}",
+        key, connection.address
+    );
 
     // send write permission with the current value to the client
     let default_value = Vec::new();
     let old_value = storage.get(&key).unwrap_or(&default_value).clone();
 
     let permission_msg_length = 5 + old_value.len() as u32;
-    let permission_message = [vec![0], permission_msg_length.to_be_bytes().to_vec(), old_value].concat();
+    let permission_message = [
+        vec![0],
+        permission_msg_length.to_be_bytes().to_vec(),
+        old_value,
+    ]
+    .concat();
     connection.send_message(&permission_message).await;
 
     // read the new value
@@ -72,7 +93,7 @@ async fn handle_write_request(mut connection: IncomingConnection, first_message:
         println!("received invalid write command message (length), dropping");
         return;
     }
-    let new_value = &write_command_message[5..new_value_length as usize+5];
+    let new_value = &write_command_message[5..new_value_length as usize + 5];
 
     println!("writing new value={:?} for key={}", new_value, key);
 
@@ -83,7 +104,11 @@ async fn handle_write_request(mut connection: IncomingConnection, first_message:
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
-async fn handle_transfer_request(mut connection: IncomingConnection, message: Vec<u8>, storage: &mut HashMap<u64, Vec<u8>>) {
+async fn handle_transfer_request(
+    mut connection: IncomingConnection,
+    message: Vec<u8>,
+    storage: &mut HashMap<u64, Vec<u8>>,
+) {
     // at this point, the first byte of message is 11
     if u32::from_be_bytes(message[1..5].try_into().unwrap()) != 21 || message.len() != 21 {
         println!("receiving invalid transfer request, dropping");
@@ -95,9 +120,16 @@ async fn handle_transfer_request(mut connection: IncomingConnection, message: Ve
 
     let mut response_payload = Vec::new();
 
-    let keys_to_transfer: Vec<_> = storage.keys().filter(|&&k| key_lower_bound <= k && k <= key_upper_bound).cloned().collect();
+    let keys_to_transfer: Vec<_> = storage
+        .keys()
+        .filter(|&&k| key_lower_bound <= k && k <= key_upper_bound)
+        .cloned()
+        .collect();
 
-    println!("transfering leader keys {:?} ({}..={}) to {}", keys_to_transfer, key_lower_bound, key_upper_bound, connection.address);
+    println!(
+        "transfering leader keys {:?} ({}..={}) to {}",
+        keys_to_transfer, key_lower_bound, key_upper_bound, connection.address
+    );
 
     for key in keys_to_transfer {
         if let Some(value) = storage.remove(&key) {

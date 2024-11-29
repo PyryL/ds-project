@@ -16,7 +16,8 @@ pub struct PeerNode {
 }
 
 pub async fn start_node(known_node_ip_address: Option<String>) {
-    let (node_list, initial_leader_kv_pairs) = join::run_join_procedure(known_node_ip_address.as_deref()).await;
+    let (node_list, initial_leader_kv_pairs) =
+        join::run_join_procedure(known_node_ip_address.as_deref()).await;
     let node_list = Arc::new(Mutex::new(node_list));
 
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();
@@ -50,7 +51,9 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
             let message = connection.read_message().await;
 
             match message.first() {
-                Some(1) | Some(2) | Some(11) => leader_sender_clone.send((connection, message)).unwrap(),
+                Some(1) | Some(2) | Some(11) => {
+                    leader_sender_clone.send((connection, message)).unwrap()
+                }
                 Some(10) | Some(13) => peer_sender_clone.send((connection, message)).unwrap(),
                 Some(200) | Some(202) => client_sender_clone.send((connection, message)).unwrap(),
                 _ => println!("received invalid message, dropping"),

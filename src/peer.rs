@@ -1,6 +1,6 @@
 use crate::{communication::IncomingConnection, PeerNode};
-use tokio::sync::{mpsc, Mutex};
 use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 
 pub async fn peer_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
@@ -12,7 +12,7 @@ pub async fn peer_block(
         match message.first() {
             Some(10) => handle_node_list_request(connection, &node_list_access).await,
             Some(13) => handle_join_announcement(connection, message, &mut node_list_access).await,
-            _ => { },
+            _ => {}
         };
     }
 }
@@ -30,15 +30,24 @@ async fn handle_node_list_request(mut connection: IncomingConnection, node_list:
         encoded_node_list.extend_from_slice(&node_id_bytes);
         encoded_node_list.extend_from_slice(&node_ip_bytes);
     }
-    
+
     let response_length = (5 + encoded_node_list.len() as u32).to_be_bytes();
-    connection.send_message(&[vec![0], response_length.to_vec(), encoded_node_list].concat()).await;
+    connection
+        .send_message(&[vec![0], response_length.to_vec(), encoded_node_list].concat())
+        .await;
 }
 
-async fn handle_join_announcement(mut connection: IncomingConnection, message: Vec<u8>, node_list: &mut Vec<PeerNode>) {
+async fn handle_join_announcement(
+    mut connection: IncomingConnection,
+    message: Vec<u8>,
+    node_list: &mut Vec<PeerNode>,
+) {
     // at this point the first byte of message is 13
     if message.len() != 13 || u32::from_be_bytes(message[1..5].try_into().unwrap()) != 13 {
-        println!("received invalid join announcement from {}, dropping", connection.address);
+        println!(
+            "received invalid join announcement from {}, dropping",
+            connection.address
+        );
         return;
     }
 
@@ -50,9 +59,15 @@ async fn handle_join_announcement(mut connection: IncomingConnection, message: V
         return;
     }
 
-    node_list.push(PeerNode { id: joining_node_id, ip_address: joining_node_ip.to_string() });
+    node_list.push(PeerNode {
+        id: joining_node_id,
+        ip_address: joining_node_ip.to_string(),
+    });
 
-    println!("registered new peer ID={} at {}", joining_node_id, joining_node_ip);
+    println!(
+        "registered new peer ID={} at {}",
+        joining_node_id, joining_node_ip
+    );
 
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }

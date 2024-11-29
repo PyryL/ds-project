@@ -14,10 +14,7 @@ pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {
         let listener = TcpListener::bind("0.0.0.0:52525").await.unwrap();
 
         while let Ok((stream, address)) = listener.accept().await {
-            let incoming_connection = IncomingConnection {
-                address,
-                stream,
-            };
+            let incoming_connection = IncomingConnection { address, stream };
             tx.send(incoming_connection).unwrap();
         }
     });
@@ -33,7 +30,11 @@ pub struct IncomingConnection {
 impl IncomingConnection {
     /// Open and return a new connection with another process and send the given message.
     pub async fn new(peer_ip_address: String, message: &[u8]) -> Result<IncomingConnection> {
-        let peer_address = format!("{}:52525", peer_ip_address).to_socket_addrs().unwrap().next().unwrap();
+        let peer_address = format!("{}:52525", peer_ip_address)
+            .to_socket_addrs()
+            .unwrap()
+            .next()
+            .unwrap();
 
         let client = TcpSocket::new_v4().unwrap();
         let mut stream = client.connect(peer_address).await?;
@@ -55,7 +56,7 @@ impl IncomingConnection {
 
         let message_length = u32::from_be_bytes(header[1..5].try_into().unwrap());
 
-        let mut payload = vec![0; (message_length-5) as usize];
+        let mut payload = vec![0; (message_length - 5) as usize];
 
         self.stream.read_exact(&mut payload).await.unwrap();
 
