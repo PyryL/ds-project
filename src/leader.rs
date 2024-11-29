@@ -89,11 +89,13 @@ async fn handle_transfer_request(mut connection: IncomingConnection, message: Ve
     let key_lower_bound = u64::from_be_bytes(message[5..13].try_into().unwrap());
     let key_upper_bound = u64::from_be_bytes(message[13..21].try_into().unwrap());
 
-    println!("transfering leader keys {}..{} to {}", key_lower_bound, key_upper_bound, connection.address);
-
     let mut response_payload = Vec::new();
 
-    for key in key_lower_bound..=key_upper_bound {
+    let keys_to_transfer: Vec<_> = storage.keys().filter(|&&k| key_lower_bound <= k && k <= key_upper_bound).cloned().collect();
+
+    println!("transfering leader keys {:?} ({}..={}) to {}", keys_to_transfer, key_lower_bound, key_upper_bound, connection.address);
+
+    for key in keys_to_transfer {
         if let Some(value) = storage.remove(&key) {
             response_payload.extend_from_slice(&key.to_be_bytes());
             response_payload.extend_from_slice(&(value.len() as u32).to_be_bytes());
