@@ -31,9 +31,17 @@ pub async fn run_join_procedure(
 
     // TODO: request backup key-value pairs
 
-    // TODO: parallelize
+    // announce every existing node about the join in parallel
+    let mut announce_handles = Vec::new();
     for peer_node in node_list.iter() {
-        announce_joining(node_id, &peer_node.ip_address).await;
+        let peer_ip_address = peer_node.ip_address.clone();
+        let handle = tokio::task::spawn(async move {
+            announce_joining(node_id, peer_ip_address).await;
+        });
+        announce_handles.push(handle);
+    }
+    for handle in announce_handles {
+        handle.await.unwrap();
     }
 
     // add this node itself to the list of nodes
@@ -144,10 +152,10 @@ async fn request_primary_kv_pairs(
     kv_pairs
 }
 
-async fn announce_joining(this_node_id: u64, peer_node_ip_address: &str) {
+async fn announce_joining(this_node_id: u64, peer_node_ip_address: String) {
     let request = [vec![13, 0, 0, 0, 13], this_node_id.to_be_bytes().to_vec()].concat();
 
-    let mut connection = IncomingConnection::new(peer_node_ip_address.to_string(), &request)
+    let mut connection = IncomingConnection::new(peer_node_ip_address, &request)
         .await
         .unwrap();
 
@@ -156,7 +164,7 @@ async fn announce_joining(this_node_id: u64, peer_node_ip_address: &str) {
     if response != vec![0, 0, 0, 0, 7, 111, 107] {
         println!(
             "received invalid ack to join announcement from {}, ignoring",
-            peer_node_ip_address
+            connection.address
         );
     }
 }
