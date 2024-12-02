@@ -97,6 +97,17 @@ async fn handle_write_request(
 
     println!("writing new value={:?} for key={}", new_value, key);
 
+    // push the update to backups
+    let neighbors = ["192.168.0.244".to_string()]; // TODO
+    // TODO: parallelize
+    for neighbor in neighbors {
+        let success = push_update_to_backup(neighbor, key, new_value.to_vec()).await;
+        if !success {
+            // TODO: abort write
+            panic!()
+        }
+    }
+
     // write the new value to the storage
     storage.insert(key, new_value.to_vec());
 
@@ -143,4 +154,31 @@ async fn handle_transfer_request(
     let response = [vec![0], response_length_bytes.to_vec(), response_payload].concat();
 
     connection.send_message(&response).await;
+}
+
+async fn push_update_to_backup(backup_node_ip_address: String, key: u64, value: Vec<u8>) -> bool {
+    let request_length = value.len() as u32 + 13;
+    let request = [
+        vec![20],
+        request_length.to_be_bytes().to_vec(),
+        key.to_be_bytes().to_vec(),
+        value,
+    ]
+    .concat();
+
+    let mut connection = IncomingConnection::new(backup_node_ip_address, &request)
+        .await
+        .unwrap();
+
+    let response = connection.read_message().await;
+
+    if response != [0, 0, 0, 0, 7, 111, 107] {
+        println!(
+            "failed to update backup for key={} at {}, aborting the write",
+            key, connection.address
+        );
+        false
+    } else {
+        true
+    }
 }

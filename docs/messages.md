@@ -62,6 +62,22 @@ and from there to the client:
 * message total length, four big-endian bytes (value always `7`)
 * two bytes, value `[111, 107]`
 
+
+## Backups
+
+Request from the leader node to the neighbor to write a backup:
+
+* message type, one byte, value `20`
+* message total length, four big-endian bytes
+* the key, 8 big-endian bytes
+* the value
+
+Acknowledgement response from the backup neighbor to the leader node:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
 ## Join
 
 Request from the joining node to the one known node:
