@@ -6,6 +6,7 @@ use tokio_stream::StreamExt;
 mod backup;
 mod client;
 mod communication;
+mod helpers;
 mod join;
 mod leader;
 mod peer;

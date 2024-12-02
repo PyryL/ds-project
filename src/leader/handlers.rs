@@ -1,5 +1,6 @@
-use super::backup::{find_neighbors, push_update_to_backup};
+use super::backup::push_update_to_backup;
 use crate::communication::IncomingConnection;
+use crate::helpers::neighbors::find_neighbors_wrapping;
 use crate::PeerNode;
 use std::collections::HashMap;
 
@@ -74,7 +75,7 @@ pub async fn handle_write_request(
     println!("writing new value={:?} for key={}", new_value, key);
 
     // push the update to backups
-    let neighbors = find_neighbors(this_node_id, node_list);
+    let neighbors = find_neighbors_wrapping(this_node_id, node_list);
     // TODO: parallelize
     for neighbor in neighbors {
         if let Some(neighbor) = neighbor {
