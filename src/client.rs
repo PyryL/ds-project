@@ -11,11 +11,9 @@ pub async fn client_block(
         let node_list_clone = Arc::clone(&node_list);
 
         tokio::task::spawn(async move {
-            let node_list = node_list_clone.lock().await;
-
             match message.first() {
-                Some(200) => forward_read_request(client_connection, message, &node_list).await,
-                Some(202) => forward_write_request(client_connection, message, &node_list).await,
+                Some(200) => forward_read_request(client_connection, message, node_list_clone).await,
+                Some(202) => forward_write_request(client_connection, message, node_list_clone).await,
                 _ => {}
             };
         });
@@ -25,7 +23,7 @@ pub async fn client_block(
 async fn forward_read_request(
     mut client_connection: IncomingConnection,
     message: Vec<u8>,
-    node_list: &[PeerNode],
+    node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     // at this point, the first byte of connection.message is `200`
     if message.len() != 13 {
@@ -35,7 +33,11 @@ async fn forward_read_request(
     let key = u64::from_be_bytes(message[5..13].try_into().unwrap());
 
     // forward the request to the leader node
-    let leader_node = leader_node_for_key(node_list, key);
+    let leader_node;
+    {
+        let node_list = node_list_arc.lock().await;
+        leader_node = leader_node_for_key(&node_list, key);
+    }
     println!(
         "forwarding read request {} -> {}",
         client_connection.address, leader_node.ip_address
@@ -54,7 +56,7 @@ async fn forward_read_request(
 async fn forward_write_request(
     mut client_connection: IncomingConnection,
     message: Vec<u8>,
-    node_list: &[PeerNode],
+    node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     // at this point, the first byte of message is `202`
     if message.len() != 13 {
@@ -64,7 +66,11 @@ async fn forward_write_request(
     let key = u64::from_be_bytes(message[5..13].try_into().unwrap());
 
     // forward request to the leader node
-    let leader_node = leader_node_for_key(node_list, key);
+    let leader_node;
+    {
+        let node_list = node_list_arc.lock().await;
+        leader_node = leader_node_for_key(&node_list, key);
+    }
     println!(
         "forwarding write request {} -> {}",
         client_connection.address, leader_node.ip_address

@@ -29,13 +29,13 @@ pub async fn leader_block(
         match first_message.first() {
             Some(1) => handle_read_request(connection, first_message, &leader_storage).await,
             Some(2) => {
-                let node_list = node_list_arc.lock().await;
+                let node_list_clone = Arc::clone(&node_list_arc);
                 handle_write_request(
                     connection,
                     first_message,
                     &mut leader_storage,
                     this_node_id,
-                    &node_list,
+                    node_list_clone,
                 )
                 .await
             }

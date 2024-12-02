@@ -3,6 +3,8 @@ use crate::communication::IncomingConnection;
 use crate::helpers::neighbors::find_neighbors_wrapping;
 use crate::PeerNode;
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub async fn handle_read_request(
     mut connection: IncomingConnection,
@@ -31,7 +33,7 @@ pub async fn handle_write_request(
     first_message: Vec<u8>,
     storage: &mut HashMap<u64, Vec<u8>>,
     this_node_id: u64,
-    node_list: &Vec<PeerNode>,
+    node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     // at this point the first byte of first_message is `2`
     let total_length_header = u32::from_be_bytes(first_message[1..5].try_into().unwrap());
@@ -75,7 +77,11 @@ pub async fn handle_write_request(
     println!("writing new value={:?} for key={}", new_value, key);
 
     // push the update to backups
-    let neighbors = find_neighbors_wrapping(this_node_id, node_list);
+    let neighbors;
+    {
+        let node_list = node_list_arc.lock().await;
+        neighbors = find_neighbors_wrapping(this_node_id, &node_list);
+    }
     // TODO: parallelize
     for neighbor in neighbors {
         if let Some(neighbor) = neighbor {
