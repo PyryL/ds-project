@@ -118,6 +118,26 @@ The response:
 
 
 
+Request from the joining node to its neighbor
+requesting the key-value pairs for backup:
+
+* message type, one byte, value `12`
+* message total length, four big-endian bytes (value always `5`)
+
+Note that the key-value pairs are backups from the joining node's viewpoint,
+but primary (leader) pairs from the receiver's viewpoint.
+
+The response:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes
+* zero or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value
+
+
+
 The announcement from the joining node to every other node:
 
 * message type, one byte, value `13`

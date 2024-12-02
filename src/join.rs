@@ -1,13 +1,13 @@
 use crate::communication::IncomingConnection;
-use crate::helpers::neighbors::find_neighbors_nonwrapping;
+use crate::helpers::neighbors::{find_neighbors_wrapping, find_neighbors_nonwrapping};
 use crate::PeerNode;
 use rand::{thread_rng, Rng};
 use std::ops::RangeInclusive;
 
-/// Returns this node ID, node list and initial leader key-value pairs.
+/// Returns this node ID, node list and initial leader and backup key-value pairs.
 pub async fn run_join_procedure(
     known_node_ip_address: Option<&str>,
-) -> (u64, Vec<PeerNode>, Vec<(u64, Vec<u8>)>) {
+) -> (u64, Vec<PeerNode>, Vec<(u64, Vec<u8>)>, Vec<(u64, Vec<u8>)>) {
     let mut node_list = match known_node_ip_address {
         Some(ip_address) => request_node_list(ip_address).await,
         None => Vec::new(),
@@ -30,7 +30,15 @@ pub async fn run_join_procedure(
         (None, None) => Vec::new(),
     };
 
-    // TODO: request backup key-value pairs
+    // request backup key-value pairs
+    let [smaller_neighbor, greater_neighbor] = find_neighbors_wrapping(node_id, &node_list);
+    let mut backup_kv_pairs = Vec::new();
+    if let Some(smaller_neighbor) = smaller_neighbor {
+        backup_kv_pairs.extend_from_slice(&request_backup_kv_pairs(&smaller_neighbor).await);
+    }
+    if let Some(greater_neighbor) = greater_neighbor {
+        backup_kv_pairs.extend_from_slice(&request_backup_kv_pairs(&greater_neighbor).await);
+    }
 
     // announce every existing node about the join in parallel
     let mut announce_handles = Vec::new();
@@ -51,7 +59,7 @@ pub async fn run_join_procedure(
         ip_address: "127.0.0.1".to_string(),
     });
 
-    (node_id, node_list, leader_kv_pairs)
+    (node_id, node_list, leader_kv_pairs, backup_kv_pairs)
 }
 
 async fn request_node_list(known_node_ip_address: &str) -> Vec<PeerNode> {
@@ -118,6 +126,35 @@ async fn request_primary_kv_pairs(
     if response.len() != response_length {
         panic!("received invalid leader transfer response, aborting");
     }
+
+    let mut kv_pairs = Vec::new();
+
+    let mut i = 5;
+    while i < response_length {
+        let key = u64::from_be_bytes(response[i..i + 8].try_into().unwrap());
+        let value_length = u32::from_be_bytes(response[i + 8..i + 12].try_into().unwrap()) as usize;
+        let value = &response[i + 12..i + 12 + value_length];
+        kv_pairs.push((key, value.to_vec()));
+        i += value_length + 12;
+    }
+
+    kv_pairs
+}
+
+async fn request_backup_kv_pairs(neighbor: &PeerNode) -> Vec<(u64, Vec<u8>)> {
+    println!("requesting initial backups from {}", neighbor.ip_address);
+
+    // make request
+    let request = [12, 0, 0, 0, 5];
+    let mut connection = IncomingConnection::new(neighbor.ip_address.to_string(), &request).await.unwrap();
+
+    let response = connection.read_message().await;
+
+    if response.len() < 5 || response[0] != 0 {
+        panic!("received invalid backup transfer response, panicing")
+    }
+
+    let response_length = u32::from_be_bytes(response[1..5].try_into().unwrap()) as usize;
 
     let mut kv_pairs = Vec::new();
 

@@ -18,7 +18,7 @@ pub struct PeerNode {
 }
 
 pub async fn start_node(known_node_ip_address: Option<String>) {
-    let (this_node_id, node_list, initial_leader_kv_pairs) =
+    let (this_node_id, node_list, initial_leader_kv_pairs, _initial_backup_kv_pairs) =
         join::run_join_procedure(known_node_ip_address.as_deref()).await;
     let node_list = Arc::new(Mutex::new(node_list));
 
@@ -67,7 +67,7 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
             let message = connection.read_message().await;
 
             match message.first() {
-                Some(1) | Some(2) | Some(11) => {
+                Some(1) | Some(2) | Some(11) | Some(12) => {
                     leader_sender_clone.send((connection, message)).unwrap()
                 }
                 Some(10) | Some(13) => peer_sender_clone.send((connection, message)).unwrap(),

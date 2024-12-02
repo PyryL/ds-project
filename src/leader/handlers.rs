@@ -140,3 +140,30 @@ pub async fn handle_transfer_request(
 
     connection.send_message(&response).await;
 }
+
+pub async fn handle_backup_request(mut connection: IncomingConnection, storage: &HashMap<u64, Vec<u8>>) {
+    // message was [12, 0, 0, 0, 5]
+    let storage_keys: Vec<_> = storage.keys().collect();
+    println!("responding leader kv-pairs (keys {:?}) to {} for backup", storage_keys, connection.address);
+
+    let mut response_payload = Vec::new();
+
+    for (key, value) in storage.iter() {
+        response_payload.extend_from_slice(&key.to_be_bytes());
+        response_payload.extend_from_slice(&(value.len() as u32).to_be_bytes());
+        response_payload.extend_from_slice(value);
+    }
+
+    let response_length = response_payload.len() as u32 + 5;
+
+    let response = [
+        vec![0],
+        response_length.to_be_bytes().to_vec(),
+        response_payload
+    ]
+    .concat();
+
+    connection.send_message(&response).await;
+
+    println!("backup transfer done");
+}

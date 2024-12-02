@@ -1,6 +1,6 @@
 use crate::communication::IncomingConnection;
 use crate::PeerNode;
-use handlers::{handle_read_request, handle_transfer_request, handle_write_request};
+use handlers::{handle_backup_request, handle_read_request, handle_transfer_request, handle_write_request};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
@@ -42,6 +42,7 @@ pub async fn leader_block(
             Some(11) => {
                 handle_transfer_request(connection, first_message, &mut leader_storage).await
             }
+            Some(12) => handle_backup_request(connection, &leader_storage).await,
             _ => panic!(),
         };
     }
