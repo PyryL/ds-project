@@ -17,14 +17,21 @@ pub struct PeerNode {
 }
 
 pub async fn start_node(known_node_ip_address: Option<String>) {
-    let (node_list, initial_leader_kv_pairs) =
+    let (this_node_id, node_list, initial_leader_kv_pairs) =
         join::run_join_procedure(known_node_ip_address.as_deref()).await;
     let node_list = Arc::new(Mutex::new(node_list));
 
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();
     let leader_sender = Arc::new(leader_sender);
+    let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        leader::leader_block(leader_receiver, initial_leader_kv_pairs).await;
+        leader::leader_block(
+            leader_receiver,
+            initial_leader_kv_pairs,
+            node_list_clone,
+            this_node_id,
+        )
+        .await;
     });
 
     let (client_sender, client_receiver) = mpsc::unbounded_channel();

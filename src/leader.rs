@@ -1,10 +1,14 @@
 use crate::communication::IncomingConnection;
+use crate::PeerNode;
 use std::collections::HashMap;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 
 pub async fn leader_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
     initial_kv_pairs: Vec<(u64, Vec<u8>)>,
+    node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
+    this_node_id: u64,
 ) {
     let mut leader_storage: HashMap<u64, Vec<u8>> = HashMap::new();
 
@@ -20,7 +24,17 @@ pub async fn leader_block(
     while let Some((connection, first_message)) = incoming_connection_stream.recv().await {
         match first_message.first() {
             Some(1) => handle_read_request(connection, first_message, &leader_storage).await,
-            Some(2) => handle_write_request(connection, first_message, &mut leader_storage).await,
+            Some(2) => {
+                let node_list = node_list_arc.lock().await;
+                handle_write_request(
+                    connection,
+                    first_message,
+                    &mut leader_storage,
+                    this_node_id,
+                    &node_list,
+                )
+                .await
+            }
             Some(11) => {
                 handle_transfer_request(connection, first_message, &mut leader_storage).await
             }
@@ -55,6 +69,8 @@ async fn handle_write_request(
     mut connection: IncomingConnection,
     first_message: Vec<u8>,
     storage: &mut HashMap<u64, Vec<u8>>,
+    this_node_id: u64,
+    node_list: &Vec<PeerNode>,
 ) {
     // at this point the first byte of first_message is `2`
     let total_length_header = u32::from_be_bytes(first_message[1..5].try_into().unwrap());
@@ -98,13 +114,15 @@ async fn handle_write_request(
     println!("writing new value={:?} for key={}", new_value, key);
 
     // push the update to backups
-    let neighbors = ["192.168.0.244".to_string()]; // TODO
+    let neighbors = find_neighbors(this_node_id, node_list);
     // TODO: parallelize
     for neighbor in neighbors {
-        let success = push_update_to_backup(neighbor, key, new_value.to_vec()).await;
-        if !success {
-            // TODO: abort write
-            panic!()
+        if let Some(neighbor) = neighbor {
+            let success = push_update_to_backup(neighbor.ip_address, key, new_value.to_vec()).await;
+            if !success {
+                // TODO: abort write
+                panic!()
+            }
         }
     }
 
@@ -156,6 +174,57 @@ async fn handle_transfer_request(
     connection.send_message(&response).await;
 }
 
+/// Finds the neighbors of this node and wraps around the ring if necessary.
+/// Does not return this node itself in any case.
+/// If greater and smaller neighbour would be the same, it is only returned once.
+fn find_neighbors(this_node_id: u64, node_list: &Vec<PeerNode>) -> [Option<PeerNode>; 2] {
+    // smaller neighbor = node with greatest ID smaller than self
+    // if not found, use the greatest node
+    let greatest_node = node_list
+        .iter()
+        .filter(|node| node.id != this_node_id)
+        .max_by_key(|node| node.id);
+
+    let smaller_neighbor = node_list
+        .iter()
+        .filter(|peer| peer.id < this_node_id)
+        .max_by_key(|peer| peer.id);
+
+    let smaller_neighbor = match (smaller_neighbor, greatest_node) {
+        (Some(neighbor), _) => Some(neighbor.clone()),
+        (None, greatest_node) => greatest_node.cloned(),
+    };
+
+    // greater neighbor = node with smallest ID greater than self
+    // if not found, use the smallest node
+    let smallest_node = node_list
+        .iter()
+        .filter(|node| node.id != this_node_id)
+        .min_by_key(|node| node.id);
+
+    let greater_neighbor = node_list
+        .iter()
+        .filter(|peer| peer.id > this_node_id)
+        .min_by_key(|peer| peer.id);
+
+    let greater_neighbor = match (greater_neighbor, smallest_node) {
+        (Some(neighbor), _) => Some(neighbor.clone()),
+        (None, smallest_node) => smallest_node.cloned(),
+    };
+
+    // do not return the same node twice
+    match (smaller_neighbor, greater_neighbor) {
+        (Some(smaller), Some(greater)) => {
+            if smaller.id == greater.id {
+                [Some(smaller), None]
+            } else {
+                [Some(smaller), Some(greater)]
+            }
+        }
+        (smaller, greater) => [smaller, greater],
+    }
+}
+
 async fn push_update_to_backup(backup_node_ip_address: String, key: u64, value: Vec<u8>) -> bool {
     let request_length = value.len() as u32 + 13;
     let request = [
@@ -180,5 +249,63 @@ async fn push_update_to_backup(backup_node_ip_address: String, key: u64, value: 
         false
     } else {
         true
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn simple_neighbor_finding() {
+        let node_list = vec![
+            PeerNode {
+                id: 100,
+                ip_address: "192.168.0.100".to_string(),
+            },
+            PeerNode {
+                id: 200,
+                ip_address: "192.168.0.200".to_string(),
+            },
+            PeerNode {
+                id: 150,
+                ip_address: "192.168.0.150".to_string(),
+            },
+            PeerNode {
+                id: 10,
+                ip_address: "192.168.0.10".to_string(),
+            },
+        ];
+        let result = find_neighbors(200, &node_list);
+        assert_eq!(result[0].clone().unwrap().id, 150);
+        assert_eq!(result[1].clone().unwrap().id, 10);
+    }
+
+    #[test]
+    fn missing_neighbor_finding() {
+        let node_list = vec![
+            PeerNode {
+                id: 100,
+                ip_address: "192.168.0.100".to_string(),
+            },
+            PeerNode {
+                id: 200,
+                ip_address: "192.168.0.200".to_string(),
+            },
+        ];
+        let result = find_neighbors(200, &node_list);
+        assert_eq!(result[0].clone().unwrap().id, 100);
+        assert!(result[1].is_none());
+    }
+
+    #[test]
+    fn alone_neighbor_finding() {
+        let node_list = vec![PeerNode {
+            id: 200,
+            ip_address: "192.168.0.200".to_string(),
+        }];
+        let result = find_neighbors(200, &node_list);
+        assert!(result[0].is_none());
+        assert!(result[1].is_none());
     }
 }

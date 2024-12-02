@@ -3,10 +3,10 @@ use crate::PeerNode;
 use rand::{thread_rng, Rng};
 use std::ops::RangeInclusive;
 
-/// Returns node list and initial leader key-value pairs.
+/// Returns this node ID, node list and initial leader key-value pairs.
 pub async fn run_join_procedure(
     known_node_ip_address: Option<&str>,
-) -> (Vec<PeerNode>, Vec<(u64, Vec<u8>)>) {
+) -> (u64, Vec<PeerNode>, Vec<(u64, Vec<u8>)>) {
     let mut node_list = match known_node_ip_address {
         Some(ip_address) => request_node_list(ip_address).await,
         None => Vec::new(),
@@ -50,7 +50,7 @@ pub async fn run_join_procedure(
         ip_address: "127.0.0.1".to_string(),
     });
 
-    (node_list, leader_kv_pairs)
+    (node_id, node_list, leader_kv_pairs)
 }
 
 async fn request_node_list(known_node_ip_address: &str) -> Vec<PeerNode> {
