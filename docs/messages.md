@@ -149,3 +149,32 @@ The acknowledgement response from another node to the joining node:
 * message type, one byte, value `0`
 * message total length, four big-endian bytes (value always `7`)
 * two constant bytes, `[111, 107]`
+
+
+## Fault tolerance
+
+The message to a node indicating that the receiver's neighbor is down:
+
+* message type, one byte, value `30`
+* message total length, four big-endian bytes (value always `13`)
+* the ID of the crashed node, 8 big-endian bytes
+
+Response to this message acknowledging that the fault is handled:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
+
+
+The message from a node to everybody announcing that a certain node is down:
+
+* message type, one byte, value `31`
+* message total length, four big-endian bytes (value always `13`)
+* the ID of the crashed node, 8 big-endian bytes
+
+Response to this announcement:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`

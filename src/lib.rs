@@ -6,6 +6,7 @@ use tokio_stream::StreamExt;
 mod backup;
 mod client;
 mod communication;
+mod fault_tolerance;
 mod helpers;
 mod join;
 mod leader;
@@ -55,6 +56,13 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
         backup::backup_block(backup_receiver).await;
     });
 
+    let (fault_tolerance_sender, fault_tolerance_receiver) = mpsc::unbounded_channel();
+    let fault_tolerance_sender = Arc::new(fault_tolerance_sender);
+    let node_list_clone = Arc::clone(&node_list);
+    tokio::task::spawn(async move {
+        fault_tolerance::fault_tolerance(fault_tolerance_receiver, node_list_clone).await;
+    });
+
     let mut incoming_connections_stream = listen_messages().await;
 
     while let Some(mut connection) = incoming_connections_stream.next().await {
@@ -62,6 +70,7 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
         let client_sender_clone = Arc::clone(&client_sender);
         let peer_sender_clone = Arc::clone(&peer_sender);
         let backup_sender_clone = Arc::clone(&backup_sender);
+        let fault_tolerance_sender_clone = Arc::clone(&fault_tolerance_sender);
 
         tokio::task::spawn(async move {
             let message = connection.read_message().await;
@@ -72,6 +81,9 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
                 }
                 Some(10) | Some(13) => peer_sender_clone.send((connection, message)).unwrap(),
                 Some(20) => backup_sender_clone.send((connection, message)).unwrap(),
+                Some(30) | Some(31) => fault_tolerance_sender_clone
+                    .send((connection, message))
+                    .unwrap(),
                 Some(200) | Some(202) => client_sender_clone.send((connection, message)).unwrap(),
                 _ => println!("received invalid message, dropping"),
             };
