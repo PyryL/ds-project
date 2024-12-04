@@ -17,7 +17,10 @@ pub async fn peer_block(
     }
 }
 
-async fn handle_node_list_request(mut connection: IncomingConnection, node_list_arc: Arc<Mutex<Vec<PeerNode>>>) {
+async fn handle_node_list_request(
+    mut connection: IncomingConnection,
+    node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
+) {
     // at this point the first byte of message is 10
 
     println!("serving node list to {}", connection.address);

@@ -1,6 +1,8 @@
 use crate::communication::IncomingConnection;
 use crate::PeerNode;
-use handlers::{handle_backup_request, handle_read_request, handle_transfer_request, handle_write_request};
+use handlers::{
+    handle_backup_request, handle_read_request, handle_transfer_request, handle_write_request,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};

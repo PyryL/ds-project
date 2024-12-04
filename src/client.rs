@@ -12,8 +12,12 @@ pub async fn client_block(
 
         tokio::task::spawn(async move {
             match message.first() {
-                Some(200) => forward_read_request(client_connection, message, node_list_clone).await,
-                Some(202) => forward_write_request(client_connection, message, node_list_clone).await,
+                Some(200) => {
+                    forward_read_request(client_connection, message, node_list_clone).await
+                }
+                Some(202) => {
+                    forward_write_request(client_connection, message, node_list_clone).await
+                }
                 _ => {}
             };
         });

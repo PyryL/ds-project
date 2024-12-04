@@ -1,5 +1,5 @@
 use crate::communication::IncomingConnection;
-use crate::helpers::neighbors::{find_neighbors_wrapping, find_neighbors_nonwrapping};
+use crate::helpers::neighbors::{find_neighbors_nonwrapping, find_neighbors_wrapping};
 use crate::PeerNode;
 use rand::{thread_rng, Rng};
 use std::ops::RangeInclusive;
@@ -146,7 +146,9 @@ async fn request_backup_kv_pairs(neighbor: &PeerNode) -> Vec<(u64, Vec<u8>)> {
 
     // make request
     let request = [12, 0, 0, 0, 5];
-    let mut connection = IncomingConnection::new(neighbor.ip_address.to_string(), &request).await.unwrap();
+    let mut connection = IncomingConnection::new(neighbor.ip_address.to_string(), &request)
+        .await
+        .unwrap();
 
     let response = connection.read_message().await;
 
