@@ -1,35 +1,12 @@
+use super::backup::push_update_to_backup;
 use crate::communication::IncomingConnection;
+use crate::helpers::neighbors::find_neighbors_wrapping;
+use crate::PeerNode;
 use std::collections::HashMap;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-pub async fn leader_block(
-    mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
-    initial_kv_pairs: Vec<(u64, Vec<u8>)>,
-) {
-    let mut leader_storage: HashMap<u64, Vec<u8>> = HashMap::new();
-
-    println!(
-        "leader block starting with initial kv-pairs {:?}",
-        initial_kv_pairs
-    );
-
-    for (key, value) in initial_kv_pairs {
-        leader_storage.insert(key, value);
-    }
-
-    while let Some((connection, first_message)) = incoming_connection_stream.recv().await {
-        match first_message.first() {
-            Some(1) => handle_read_request(connection, first_message, &leader_storage).await,
-            Some(2) => handle_write_request(connection, first_message, &mut leader_storage).await,
-            Some(11) => {
-                handle_transfer_request(connection, first_message, &mut leader_storage).await
-            }
-            _ => panic!(),
-        };
-    }
-}
-
-async fn handle_read_request(
+pub async fn handle_read_request(
     mut connection: IncomingConnection,
     message: Vec<u8>,
     storage: &HashMap<u64, Vec<u8>>,
@@ -51,10 +28,12 @@ async fn handle_read_request(
     connection.send_message(&response).await;
 }
 
-async fn handle_write_request(
+pub async fn handle_write_request(
     mut connection: IncomingConnection,
     first_message: Vec<u8>,
     storage: &mut HashMap<u64, Vec<u8>>,
+    this_node_id: u64,
+    node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     // at this point the first byte of first_message is `2`
     let total_length_header = u32::from_be_bytes(first_message[1..5].try_into().unwrap());
@@ -97,6 +76,23 @@ async fn handle_write_request(
 
     println!("writing new value={:?} for key={}", new_value, key);
 
+    // push the update to backups
+    let neighbors;
+    {
+        let node_list = node_list_arc.lock().await;
+        neighbors = find_neighbors_wrapping(this_node_id, &node_list);
+    }
+    // TODO: parallelize
+    for neighbor in neighbors {
+        if let Some(neighbor) = neighbor {
+            let success = push_update_to_backup(neighbor.ip_address, key, new_value.to_vec()).await;
+            if !success {
+                // TODO: abort write
+                panic!()
+            }
+        }
+    }
+
     // write the new value to the storage
     storage.insert(key, new_value.to_vec());
 
@@ -104,7 +100,7 @@ async fn handle_write_request(
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
-async fn handle_transfer_request(
+pub async fn handle_transfer_request(
     mut connection: IncomingConnection,
     message: Vec<u8>,
     storage: &mut HashMap<u64, Vec<u8>>,
@@ -143,4 +139,37 @@ async fn handle_transfer_request(
     let response = [vec![0], response_length_bytes.to_vec(), response_payload].concat();
 
     connection.send_message(&response).await;
+}
+
+pub async fn handle_backup_request(
+    mut connection: IncomingConnection,
+    storage: &HashMap<u64, Vec<u8>>,
+) {
+    // message was [12, 0, 0, 0, 5]
+    let storage_keys: Vec<_> = storage.keys().collect();
+    println!(
+        "responding leader kv-pairs (keys {:?}) to {} for backup",
+        storage_keys, connection.address
+    );
+
+    let mut response_payload = Vec::new();
+
+    for (key, value) in storage.iter() {
+        response_payload.extend_from_slice(&key.to_be_bytes());
+        response_payload.extend_from_slice(&(value.len() as u32).to_be_bytes());
+        response_payload.extend_from_slice(value);
+    }
+
+    let response_length = response_payload.len() as u32 + 5;
+
+    let response = [
+        vec![0],
+        response_length.to_be_bytes().to_vec(),
+        response_payload,
+    ]
+    .concat();
+
+    connection.send_message(&response).await;
+
+    println!("backup transfer done");
 }

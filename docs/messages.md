@@ -62,6 +62,22 @@ and from there to the client:
 * message total length, four big-endian bytes (value always `7`)
 * two bytes, value `[111, 107]`
 
+
+## Backups
+
+Request from the leader node to the neighbor to write a backup:
+
+* message type, one byte, value `20`
+* message total length, four big-endian bytes
+* the key, 8 big-endian bytes
+* the value
+
+Acknowledgement response from the backup neighbor to the leader node:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
 ## Join
 
 Request from the joining node to the one known node:
@@ -90,6 +106,26 @@ requesting the primary key-value pairs:
 * message total length, four big-endian bytes (value always `21`)
 * inclusive lower bound of the IDs to transfer, 8 big-endian bytes
 * inclusive upper bound of the IDs to transfer, 8 big-endian bytes
+
+The response:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes
+* zero or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value
+
+
+
+Request from the joining node to its neighbor
+requesting the key-value pairs for backup:
+
+* message type, one byte, value `12`
+* message total length, four big-endian bytes (value always `5`)
+
+Note that the key-value pairs are backups from the joining node's viewpoint,
+but primary (leader) pairs from the receiver's viewpoint.
 
 The response:
 
