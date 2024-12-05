@@ -76,11 +76,11 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
             let message = connection.read_message().await;
 
             match message.first() {
-                Some(1) | Some(2) | Some(11) | Some(12) => {
+                Some(1) | Some(2) | Some(11) | Some(12) | Some(33) => {
                     leader_sender_clone.send((connection, message)).unwrap()
                 }
                 Some(10) | Some(13) => peer_sender_clone.send((connection, message)).unwrap(),
-                Some(20) => backup_sender_clone.send((connection, message)).unwrap(),
+                Some(20) | Some(32) => backup_sender_clone.send((connection, message)).unwrap(),
                 Some(30) | Some(31) => fault_tolerance_sender_clone
                     .send((connection, message))
                     .unwrap(),

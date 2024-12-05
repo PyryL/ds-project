@@ -153,7 +153,8 @@ The acknowledgement response from another node to the joining node:
 
 ## Fault tolerance
 
-The message to a node indicating that the receiver's neighbor is down:
+The message to a node indicating that the receiver's smaller neighbor is down
+(also greater neighbor when the crashed node was the greatest in the ring):
 
 * message type, one byte, value `30`
 * message total length, four big-endian bytes (value always `13`)
@@ -174,6 +175,42 @@ The message from a node to everybody announcing that a certain node is down:
 * the ID of the crashed node, 8 big-endian bytes
 
 Response to this announcement:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
+
+
+Internal request from a node to itself to remove and respond the backup
+key-value pairs for a certain key range:
+
+* message type, one byte, value `32`
+* message total length, four big-endian bytes (value always `21`)
+* inclusive lower bound of the keys to transfer, 8 big-endian bytes
+* inclusive upper bound of the keys to transfer, 8 big-endian bytes
+
+The response:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes
+* zero or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value
+
+
+
+Internal request from a node to itself to save a set of new key-value pairs to leader storage:
+
+* message type, one byte, value `33`
+* message total length, four big-endian bytes
+* zero or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value
+
+Response to this request:
 
 * message type, one byte, value `0`
 * message total length, four big-endian bytes (value always `7`)

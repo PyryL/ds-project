@@ -173,3 +173,33 @@ pub async fn handle_backup_request(
 
     println!("backup transfer done");
 }
+
+pub async fn handle_fault_tolerance_insertion(
+    mut connection: IncomingConnection,
+    message: Vec<u8>,
+    storage: &mut HashMap<u64, Vec<u8>>,
+) {
+    // at this point the first byte of message is 33
+    if message.len() < 5 {
+        println!("received invalid fault tolerance insertion request, dropping");
+        return;
+    }
+
+    let mut keys = Vec::new();
+
+    let mut i = 5;
+    while i < message.len() {
+        let key = u64::from_be_bytes(message[i..i + 8].try_into().unwrap());
+        let value_length = u32::from_be_bytes(message[i + 8..i + 12].try_into().unwrap()) as usize;
+        let value = &message[i + 12..i + 12 + value_length];
+
+        storage.insert(key, value.to_vec());
+        keys.push(key);
+
+        i += value_length + 12;
+    }
+
+    println!("inserted fault tolerance keys {:?} to leader storage", keys);
+
+    connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
+}
