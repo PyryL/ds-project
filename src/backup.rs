@@ -64,7 +64,7 @@ pub async fn handle_transfer_request(
         let value = storage.remove(&key).unwrap();
 
         response_payload.extend_from_slice(&key.to_be_bytes());
-        response_payload.extend_from_slice(&value.len().to_be_bytes());
+        response_payload.extend_from_slice(&(value.len() as u32).to_be_bytes());
         response_payload.extend_from_slice(&value);
     }
 
