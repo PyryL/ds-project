@@ -8,6 +8,7 @@ use tokio::sync::{mpsc, Mutex};
 pub async fn fault_tolerance(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
     node_list: Arc<Mutex<Vec<PeerNode>>>,
+    this_node_id: u64,
 ) {
     while let Some((connection, message)) = incoming_connection_stream.recv().await {
         let node_list_clone = Arc::clone(&node_list);
@@ -15,7 +16,7 @@ pub async fn fault_tolerance(
         tokio::task::spawn(async move {
             match message.first() {
                 Some(30) => handle_neighbor_down(connection, message, node_list_clone).await,
-                Some(31) => handle_peer_deannouncement(connection, message, node_list_clone).await,
+                Some(31) => handle_peer_deannouncement(connection, message, node_list_clone, this_node_id).await,
                 _ => {}
             };
         });
@@ -56,7 +57,17 @@ async fn handle_neighbor_down(
     transfer_from_backup_to_leader(down_peer_id, &node_list).await;
 
     // create new backup replicas
-    create_new_backup_replica(down_peer_id, &node_list).await;
+    let new_backup_node;
+    // if the crashed node was the greatest in the ring
+    if find_neighbors_nonwrapping(down_peer_id, &node_list).1.is_none() {
+        // new backup node for this node is the smallest in the ring
+        new_backup_node = node_list.iter().min_by_key(|node| node.id).unwrap().clone();
+    } else {
+        // the crashed node was the smaller neighbor of this node
+        // new backup node for this node is the smaller neighbor of the crashed node (wrap if necessary)
+        new_backup_node = find_neighbors_wrapping(down_peer_id, &node_list)[0].clone().unwrap();
+    }
+    create_new_backup_replica(new_backup_node).await;
 
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
@@ -65,6 +76,7 @@ async fn handle_peer_deannouncement(
     mut connection: IncomingConnection,
     message: Vec<u8>,
     node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
+    this_node_id: u64,
 ) {
     // at this point the first byte of message is 31
     if message.len() != 13 {
@@ -79,13 +91,35 @@ async fn handle_peer_deannouncement(
         down_peer_id, connection.address
     );
 
+    let node_list;
+    {
+        node_list = node_list_arc.lock().await.clone();
+    }
+
+    // find neighbors of the crashed node
+    let [smaller_neighbor, greater_neighbor] = find_neighbors_wrapping(down_peer_id, &node_list);
+    let greatest_in_ring = node_list.iter().max_by_key(|node| node.id).unwrap();
+
+    if let Some(smaller_neighbor) = smaller_neighbor {
+        if let Some(greater_neighbor) = greater_neighbor {
+            // if the crashed node was our greater wrapping neighbor and not the greatest in the ring
+            if smaller_neighbor.id == this_node_id && greatest_in_ring.id != down_peer_id {
+                // replicate the leader pairs of this node to the greater neighbor of the crashed node for backup
+                create_new_backup_replica(greater_neighbor).await;
+            }
+            // if the crashed node was our smaller wrapping neighbor and the greatest in the ring
+            else if greater_neighbor.id == this_node_id && greatest_in_ring.id == down_peer_id {
+                // replicate the leader pairs of this node to the smaller neighbor of the crashed node for backup
+                create_new_backup_replica(smaller_neighbor).await;
+            }
+        }
+    }
+
+    // remove the crashed node from node list
     {
         let mut node_list = node_list_arc.lock().await;
         node_list.retain(|node| node.id != down_peer_id);
     }
-
-    // TODO: if the crashed node was greater neighbor and not the greatest in the ring,
-    // replicate new backup to the next greater node
 
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
@@ -158,19 +192,7 @@ async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerN
     }
 }
 
-async fn create_new_backup_replica(down_peer_id: u64, node_list: &Vec<PeerNode>) {
-    let new_backup_node;
-
-    // if the crashed node was the greatest in the ring
-    if find_neighbors_nonwrapping(down_peer_id, &node_list).1.is_none() {
-        // new backup node for this node is the smallest in the ring
-        new_backup_node = node_list.iter().min_by_key(|node| node.id).unwrap().clone();
-    } else {
-        // the crashed node was the smaller neighbor of this node
-        // new backup node for this node is the smaller neighbor of the crashed node (wrap if necessary)
-        new_backup_node = find_neighbors_wrapping(down_peer_id, node_list)[0].clone().unwrap();
-    }
-
+async fn create_new_backup_replica(new_backup_node: PeerNode) {
     // request the leader key-value pairs from this node itself
     let leader_request = [12, 0, 0, 0, 5];
     let mut leader_connection = IncomingConnection::new("127.0.0.1".to_string(), &leader_request).await.unwrap();

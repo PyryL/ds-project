@@ -60,7 +60,7 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
     let fault_tolerance_sender = Arc::new(fault_tolerance_sender);
     let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        fault_tolerance::fault_tolerance(fault_tolerance_receiver, node_list_clone).await;
+        fault_tolerance::fault_tolerance(fault_tolerance_receiver, node_list_clone, this_node_id).await;
     });
 
     let mut incoming_connections_stream = listen_messages().await;
