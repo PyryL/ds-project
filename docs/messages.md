@@ -78,6 +78,23 @@ Acknowledgement response from the backup neighbor to the leader node:
 * message total length, four big-endian bytes (value always `7`)
 * two constant bytes, `[111, 107]`
 
+
+Request from the leader node to the neighbor to write an array of backups:
+
+* message type, one byte, value `21`
+* message total length, four big-endian bytes
+* one or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value
+
+Acknowledgement response from the backup neighbor to the leader node:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
+
 ## Join
 
 Request from the joining node to the one known node:
@@ -126,6 +143,9 @@ requesting the key-value pairs for backup:
 
 Note that the key-value pairs are backups from the joining node's viewpoint,
 but primary (leader) pairs from the receiver's viewpoint.
+
+This same request is also used in fault tolerance by a node
+to request the leader keys of itself.
 
 The response:
 

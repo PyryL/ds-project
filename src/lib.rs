@@ -80,7 +80,7 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
                     leader_sender_clone.send((connection, message)).unwrap()
                 }
                 Some(10) | Some(13) => peer_sender_clone.send((connection, message)).unwrap(),
-                Some(20) | Some(32) => backup_sender_clone.send((connection, message)).unwrap(),
+                Some(20) | Some(21) | Some(32) => backup_sender_clone.send((connection, message)).unwrap(),
                 Some(30) | Some(31) => fault_tolerance_sender_clone
                     .send((connection, message))
                     .unwrap(),

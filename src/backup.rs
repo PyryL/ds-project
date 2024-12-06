@@ -10,6 +10,7 @@ pub async fn backup_block(
     while let Some((connection, message)) = incoming_connection_stream.recv().await {
         match message.first() {
             Some(20) => handle_write_request(connection, message, &mut backup_storage).await,
+            Some(21) => handle_array_write_request(connection, message, &mut backup_storage).await,
             Some(32) => handle_transfer_request(connection, message, &mut backup_storage).await,
             _ => {}
         };
@@ -36,6 +37,36 @@ async fn handle_write_request(
     );
 
     backup_storage.insert(key, value.to_vec());
+
+    connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
+}
+
+async fn handle_array_write_request(
+    mut connection: IncomingConnection,
+    message: Vec<u8>,
+    backup_storage: &mut HashMap<u64, Vec<u8>>,
+) {
+    // at this point, the first byte of message is 21
+    if message.len() < 5 {
+        println!("received invalid backup array write request, dropping");
+        return;
+    }
+
+    let mut keys = Vec::new();
+
+    let mut i = 5;
+    while i < message.len() {
+        let key = u64::from_be_bytes(message[i..i + 8].try_into().unwrap());
+        let value_length = u32::from_be_bytes(message[i + 8..i + 12].try_into().unwrap()) as usize;
+        let value = &message[i + 12..i + 12 + value_length];
+
+        backup_storage.insert(key, value.to_vec());
+        keys.push(key);
+
+        i += value_length + 12;
+    }
+
+    println!("backup array write keys {:?} from {}", keys, connection.address);
 
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
