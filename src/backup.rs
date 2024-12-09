@@ -4,8 +4,13 @@ use tokio::sync::mpsc;
 
 pub async fn backup_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
+    initial_key_value_pairs: Vec<(u64, Vec<u8>)>,
 ) {
     let mut backup_storage: HashMap<u64, Vec<u8>> = HashMap::new();
+
+    for (key, value) in initial_key_value_pairs {
+        backup_storage.insert(key, value);
+    }
 
     while let Some((connection, message)) = incoming_connection_stream.recv().await {
         match message.first() {

@@ -19,7 +19,7 @@ pub struct PeerNode {
 }
 
 pub async fn start_node(known_node_host: Option<String>) {
-    let (this_node_id, node_list, initial_leader_kv_pairs, _initial_backup_kv_pairs) =
+    let (this_node_id, node_list, initial_leader_kv_pairs, initial_backup_kv_pairs) =
         join::run_join_procedure(known_node_host.as_deref()).await;
     let node_list = Arc::new(Mutex::new(node_list));
 
@@ -53,7 +53,7 @@ pub async fn start_node(known_node_host: Option<String>) {
     let (backup_sender, backup_receiver) = mpsc::unbounded_channel();
     let backup_sender = Arc::new(backup_sender);
     tokio::task::spawn(async move {
-        backup::backup_block(backup_receiver).await;
+        backup::backup_block(backup_receiver, initial_backup_kv_pairs).await;
     });
 
     let (fault_tolerance_sender, fault_tolerance_receiver) = mpsc::unbounded_channel();
