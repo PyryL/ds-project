@@ -1,6 +1,5 @@
-use super::backup::push_update_to_backup;
+use super::backup::push_update_to_backups;
 use crate::communication::IncomingConnection;
-use crate::helpers::neighbors::find_neighbors_wrapping;
 use crate::PeerNode;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -87,21 +86,11 @@ pub async fn handle_write_request(
     println!("writing new value={:?} for key={}", new_value, key);
 
     // push the update to backups
-    let neighbors;
+    let node_list;
     {
-        let node_list = node_list_arc.lock().await;
-        neighbors = find_neighbors_wrapping(this_node_id, &node_list);
+        node_list = node_list_arc.lock().await.clone();
     }
-    // TODO: parallelize
-    for neighbor in neighbors {
-        if let Some(neighbor) = neighbor {
-            let success = push_update_to_backup(neighbor.ip_address, key, new_value.to_vec()).await;
-            if !success {
-                // TODO: abort write
-                panic!()
-            }
-        }
-    }
+    push_update_to_backups(&node_list, this_node_id, key, new_value.to_vec()).await;
 
     // write the new value to the storage
     {

@@ -23,6 +23,30 @@ pub async fn fault_tolerance(
     }
 }
 
+pub async fn send_node_down(crashed_node_id: u64, node_list: &Vec<PeerNode>) {
+    // the message must be sent to the greater neighbor of the crashed node
+    // if the crashed node was greatest in the ring, send the message to its smaller neighbor
+
+    let neighbors = find_neighbors_nonwrapping(crashed_node_id, node_list);
+    let recipient = match neighbors {
+        (_, Some(greater_neighbor)) => greater_neighbor,
+        (Some(smaller_neighbor), None) => smaller_neighbor,
+        (None, None) => return,
+    };
+
+    println!("detected ID={} to be down, informing {}", crashed_node_id, recipient.ip_address);
+
+    let request = [vec![30, 0, 0, 0, 13], crashed_node_id.to_be_bytes().to_vec()].concat();
+
+    let mut connection = IncomingConnection::new(recipient.ip_address, &request).await.unwrap();
+
+    let response = connection.read_message().await;
+
+    if response != [0, 0, 0, 0, 7, 111, 107] {
+        println!("received invalid response to type=30 message, dropping");
+    }
+}
+
 async fn handle_neighbor_down(
     mut connection: IncomingConnection,
     message: Vec<u8>,
