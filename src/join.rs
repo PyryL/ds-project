@@ -1,4 +1,4 @@
-use crate::communication::IncomingConnection;
+use crate::communication::{resolve_hostname_to_ip_address, IncomingConnection};
 use crate::helpers::neighbors::{find_neighbors_nonwrapping, find_neighbors_wrapping};
 use crate::PeerNode;
 use rand::{thread_rng, Rng};
@@ -6,10 +6,21 @@ use std::ops::RangeInclusive;
 
 /// Returns this node ID, node list and initial leader and backup key-value pairs.
 pub async fn run_join_procedure(
-    known_node_ip_address: Option<&str>,
+    known_node_host: Option<&str>,
 ) -> (u64, Vec<PeerNode>, Vec<(u64, Vec<u8>)>, Vec<(u64, Vec<u8>)>) {
+    let known_node_ip_address = match known_node_host {
+        Some(host) => {
+            if let Some(result) = resolve_hostname_to_ip_address(host) {
+                Some(result)
+            } else {
+                panic!("failed to resolve known host address, aborting");
+            }
+        }
+        None => None,
+    };
+
     let mut node_list = match known_node_ip_address {
-        Some(ip_address) => request_node_list(ip_address).await,
+        Some(ip_address) => request_node_list(&ip_address).await,
         None => Vec::new(),
     };
 

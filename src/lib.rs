@@ -18,9 +18,9 @@ pub struct PeerNode {
     pub ip_address: String,
 }
 
-pub async fn start_node(known_node_ip_address: Option<String>) {
+pub async fn start_node(known_node_host: Option<String>) {
     let (this_node_id, node_list, initial_leader_kv_pairs, _initial_backup_kv_pairs) =
-        join::run_join_procedure(known_node_ip_address.as_deref()).await;
+        join::run_join_procedure(known_node_host.as_deref()).await;
     let node_list = Arc::new(Mutex::new(node_list));
 
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();

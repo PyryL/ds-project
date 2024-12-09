@@ -22,6 +22,22 @@ pub async fn listen_messages() -> impl Stream<Item = IncomingConnection> {
     UnboundedReceiverStream::new(rx)
 }
 
+pub fn resolve_hostname_to_ip_address(hostname: &str) -> Option<String> {
+    let addresses = match format!("{}:52525", hostname).to_socket_addrs() {
+        Ok(addrs) => addrs,
+        Err(_) => return None,
+    };
+
+    let ipv4 = addresses
+        .map(|address| address.ip())
+        .find(|ip| ip.is_ipv4());
+
+    match ipv4 {
+        Some(address) => Some(address.to_string()),
+        None => None,
+    }
+}
+
 pub struct IncomingConnection {
     pub address: SocketAddr,
     stream: TcpStream,
