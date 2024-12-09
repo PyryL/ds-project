@@ -168,22 +168,34 @@ async fn handle_peer_deannouncement(
 async fn deannounce_down_peer(down_peer_id: u64, node_list: &Vec<PeerNode>) {
     let message = [vec![31, 0, 0, 0, 13], down_peer_id.to_be_bytes().to_vec()].concat();
 
-    // TODO: parallelize
+    let mut handles = Vec::new();
+
     for peer in node_list {
         if peer.id == down_peer_id {
             continue;
         }
 
-        let mut connection = IncomingConnection::new(peer.ip_address.clone(), &message)
-            .await
-            .unwrap();
+        let peer_ip_address_clone = peer.ip_address.clone();
+        let message_clone = message.clone();
 
-        if connection.read_message().await != [0, 0, 0, 0, 7, 111, 107] {
-            println!(
-                "failed to deannounce peer ID={} to {}",
-                down_peer_id, connection.address
-            );
-        }
+        let handle = tokio::task::spawn(async move {
+            let mut connection = IncomingConnection::new(peer_ip_address_clone, &message_clone)
+                .await
+                .unwrap();
+
+            if connection.read_message().await != [0, 0, 0, 0, 7, 111, 107] {
+                println!(
+                    "failed to deannounce peer ID={} to {}",
+                    down_peer_id, connection.address
+                );
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        let _ = handle.await;
     }
 }
 

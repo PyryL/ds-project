@@ -51,8 +51,6 @@ pub async fn handle_write_request(
         key, connection.address
     );
 
-    // TODO: hold mutex for whole write process
-
     // send write permission with the current value to the client
     let default_value = Vec::new();
     let old_value;
