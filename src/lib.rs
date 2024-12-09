@@ -60,7 +60,8 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
     let fault_tolerance_sender = Arc::new(fault_tolerance_sender);
     let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        fault_tolerance::fault_tolerance(fault_tolerance_receiver, node_list_clone, this_node_id).await;
+        fault_tolerance::fault_tolerance(fault_tolerance_receiver, node_list_clone, this_node_id)
+            .await;
     });
 
     let mut incoming_connections_stream = listen_messages().await;
@@ -80,7 +81,9 @@ pub async fn start_node(known_node_ip_address: Option<String>) {
                     leader_sender_clone.send((connection, message)).unwrap()
                 }
                 Some(10) | Some(13) => peer_sender_clone.send((connection, message)).unwrap(),
-                Some(20) | Some(21) | Some(32) => backup_sender_clone.send((connection, message)).unwrap(),
+                Some(20) | Some(21) | Some(32) => {
+                    backup_sender_clone.send((connection, message)).unwrap()
+                }
                 Some(30) | Some(31) => fault_tolerance_sender_clone
                     .send((connection, message))
                     .unwrap(),

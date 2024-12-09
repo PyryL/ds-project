@@ -66,7 +66,10 @@ async fn handle_array_write_request(
         i += value_length + 12;
     }
 
-    println!("backup array write keys {:?} from {}", keys, connection.address);
+    println!(
+        "backup array write keys {:?} from {}",
+        keys, connection.address
+    );
 
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
@@ -85,9 +88,16 @@ pub async fn handle_transfer_request(
     let key_lower_bound = u64::from_be_bytes(message[5..13].try_into().unwrap());
     let key_upper_bound = u64::from_be_bytes(message[13..21].try_into().unwrap());
 
-    let keys_to_transfer: Vec<_> = storage.keys().filter(|&&key| key_lower_bound <= key && key <= key_upper_bound).cloned().collect();
+    let keys_to_transfer: Vec<_> = storage
+        .keys()
+        .filter(|&&key| key_lower_bound <= key && key <= key_upper_bound)
+        .cloned()
+        .collect();
 
-    println!("transfering keys {:?} ({}..={}) out from backup", keys_to_transfer, key_lower_bound, key_upper_bound);
+    println!(
+        "transfering keys {:?} ({}..={}) out from backup",
+        keys_to_transfer, key_lower_bound, key_upper_bound
+    );
 
     let mut response_payload = Vec::new();
 
@@ -100,7 +110,12 @@ pub async fn handle_transfer_request(
     }
 
     let response_length = response_payload.len() as u32 + 5;
-    let response = [vec![0], response_length.to_be_bytes().to_vec(), response_payload].concat();
+    let response = [
+        vec![0],
+        response_length.to_be_bytes().to_vec(),
+        response_payload,
+    ]
+    .concat();
 
     connection.send_message(&response).await;
 }

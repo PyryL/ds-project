@@ -210,7 +210,8 @@ pub async fn handle_fault_tolerance_insertion(
         let mut i = 5;
         while i < message.len() {
             let key = u64::from_be_bytes(message[i..i + 8].try_into().unwrap());
-            let value_length = u32::from_be_bytes(message[i + 8..i + 12].try_into().unwrap()) as usize;
+            let value_length =
+                u32::from_be_bytes(message[i + 8..i + 12].try_into().unwrap()) as usize;
             let value = &message[i + 12..i + 12 + value_length];
 
             storage_access.insert(key, value.to_vec());

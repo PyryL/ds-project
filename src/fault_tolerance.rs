@@ -1,7 +1,7 @@
 use crate::communication::IncomingConnection;
+use crate::helpers::neighbors::find_neighbors_nonwrapping;
 use crate::helpers::neighbors::find_neighbors_wrapping;
 use crate::PeerNode;
-use crate::helpers::neighbors::find_neighbors_nonwrapping;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
@@ -16,7 +16,10 @@ pub async fn fault_tolerance(
         tokio::task::spawn(async move {
             match message.first() {
                 Some(30) => handle_neighbor_down(connection, message, node_list_clone).await,
-                Some(31) => handle_peer_deannouncement(connection, message, node_list_clone, this_node_id).await,
+                Some(31) => {
+                    handle_peer_deannouncement(connection, message, node_list_clone, this_node_id)
+                        .await
+                }
                 _ => {}
             };
         });
@@ -34,11 +37,20 @@ pub async fn send_node_down(crashed_node_id: u64, node_list: &Vec<PeerNode>) {
         (None, None) => return,
     };
 
-    println!("detected ID={} to be down, informing {}", crashed_node_id, recipient.ip_address);
+    println!(
+        "detected ID={} to be down, informing {}",
+        crashed_node_id, recipient.ip_address
+    );
 
-    let request = [vec![30, 0, 0, 0, 13], crashed_node_id.to_be_bytes().to_vec()].concat();
+    let request = [
+        vec![30, 0, 0, 0, 13],
+        crashed_node_id.to_be_bytes().to_vec(),
+    ]
+    .concat();
 
-    let mut connection = IncomingConnection::new(recipient.ip_address, &request).await.unwrap();
+    let mut connection = IncomingConnection::new(recipient.ip_address, &request)
+        .await
+        .unwrap();
 
     let response = connection.read_message().await;
 
@@ -83,13 +95,18 @@ async fn handle_neighbor_down(
     // create new backup replicas
     let new_backup_node;
     // if the crashed node was the greatest in the ring
-    if find_neighbors_nonwrapping(down_peer_id, &node_list).1.is_none() {
+    if find_neighbors_nonwrapping(down_peer_id, &node_list)
+        .1
+        .is_none()
+    {
         // new backup node for this node is the smallest in the ring
         new_backup_node = node_list.iter().min_by_key(|node| node.id).unwrap().clone();
     } else {
         // the crashed node was the smaller neighbor of this node
         // new backup node for this node is the smaller neighbor of the crashed node (wrap if necessary)
-        new_backup_node = find_neighbors_wrapping(down_peer_id, &node_list)[0].clone().unwrap();
+        new_backup_node = find_neighbors_wrapping(down_peer_id, &node_list)[0]
+            .clone()
+            .unwrap();
     }
     create_new_backup_replica(new_backup_node).await;
 
@@ -180,9 +197,16 @@ async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerN
         Some(node) => node.id + 1,
         None => 0,
     };
-    let transfer_key_upper_bound = if greater_neighbor.is_none() { u64::MAX } else { down_peer_id };
+    let transfer_key_upper_bound = if greater_neighbor.is_none() {
+        u64::MAX
+    } else {
+        down_peer_id
+    };
 
-    println!("transfering keys {}..={} from backup to leader storage", transfer_key_lower_bound, transfer_key_upper_bound);
+    println!(
+        "transfering keys {}..={} from backup to leader storage",
+        transfer_key_lower_bound, transfer_key_upper_bound
+    );
 
     // request backup key-value pairs in the range
     let backup_request = [
@@ -192,7 +216,9 @@ async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerN
     ]
     .concat();
 
-    let mut backup_connection = IncomingConnection::new("127.0.0.1".to_string(), &backup_request).await.unwrap();
+    let mut backup_connection = IncomingConnection::new("127.0.0.1".to_string(), &backup_request)
+        .await
+        .unwrap();
 
     let backup_response = backup_connection.read_message().await;
 
@@ -219,16 +245,24 @@ async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerN
 async fn create_new_backup_replica(new_backup_node: PeerNode) {
     // request the leader key-value pairs from this node itself
     let leader_request = [12, 0, 0, 0, 5];
-    let mut leader_connection = IncomingConnection::new("127.0.0.1".to_string(), &leader_request).await.unwrap();
+    let mut leader_connection = IncomingConnection::new("127.0.0.1".to_string(), &leader_request)
+        .await
+        .unwrap();
 
     let leader_response = leader_connection.read_message().await;
 
     // send the leader pairs of this node to the new backup node
     let backup_request = [vec![21], leader_response[1..].to_vec()].concat();
-    let mut backup_connection = IncomingConnection::new(new_backup_node.ip_address, &backup_request).await.unwrap();
+    let mut backup_connection =
+        IncomingConnection::new(new_backup_node.ip_address, &backup_request)
+            .await
+            .unwrap();
     let backup_response = backup_connection.read_message().await;
 
     if backup_response != [0, 0, 0, 0, 7, 111, 107] {
-        println!("failed to create a new backup replica to {}, skipping", backup_connection.address);
+        println!(
+            "failed to create a new backup replica to {}, skipping",
+            backup_connection.address
+        );
     }
 }

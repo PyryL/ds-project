@@ -1,4 +1,7 @@
-use crate::{communication::IncomingConnection, fault_tolerance::send_node_down, helpers::neighbors::find_neighbors_wrapping, PeerNode};
+use crate::{
+    communication::IncomingConnection, fault_tolerance::send_node_down,
+    helpers::neighbors::find_neighbors_wrapping, PeerNode,
+};
 
 /// Pushes the update to both backup neighbors and handles possible crashed nodes.
 /// Returns `true` if the update was propagated to both backups, `false` otherwise.
@@ -13,14 +16,15 @@ pub async fn push_update_to_backups(
             let neighbor = &find_neighbors_wrapping(this_node_id, node_list)[neighbor_side];
 
             if let Some(neighbor) = neighbor {
-                let success = send_backup_message(neighbor.ip_address.clone(), key, value.clone()).await;
+                let success =
+                    send_backup_message(neighbor.ip_address.clone(), key, value.clone()).await;
 
                 if !success && retry_counter == 0 {
                     // neighbor is down
                     send_node_down(neighbor.id, node_list).await;
                 } else if !success {
                     // two neighbors on the same side were down, failing
-                    return false
+                    return false;
                 } else {
                     // backup pushed successfully
                     break;

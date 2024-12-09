@@ -1,7 +1,8 @@
 use crate::communication::IncomingConnection;
 use crate::PeerNode;
 use handlers::{
-    handle_backup_request, handle_fault_tolerance_insertion, handle_read_request, handle_transfer_request, handle_write_request
+    handle_backup_request, handle_fault_tolerance_insertion, handle_read_request,
+    handle_transfer_request, handle_write_request,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -36,7 +37,9 @@ pub async fn leader_block(
 
         tokio::task::spawn(async move {
             match first_message.first() {
-                Some(1) => handle_read_request(connection, first_message, leader_storage_clone).await,
+                Some(1) => {
+                    handle_read_request(connection, first_message, leader_storage_clone).await
+                }
                 Some(2) => {
                     handle_write_request(
                         connection,
@@ -51,7 +54,14 @@ pub async fn leader_block(
                     handle_transfer_request(connection, first_message, leader_storage_clone).await
                 }
                 Some(12) => handle_backup_request(connection, leader_storage_clone).await,
-                Some(33) => handle_fault_tolerance_insertion(connection, first_message, leader_storage_clone).await,
+                Some(33) => {
+                    handle_fault_tolerance_insertion(
+                        connection,
+                        first_message,
+                        leader_storage_clone,
+                    )
+                    .await
+                }
                 _ => panic!(),
             };
         });
