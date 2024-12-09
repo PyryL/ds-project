@@ -78,6 +78,23 @@ Acknowledgement response from the backup neighbor to the leader node:
 * message total length, four big-endian bytes (value always `7`)
 * two constant bytes, `[111, 107]`
 
+
+Request from the leader node to the neighbor to write an array of backups:
+
+* message type, one byte, value `21`
+* message total length, four big-endian bytes
+* one or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value
+
+Acknowledgement response from the backup neighbor to the leader node:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
+
 ## Join
 
 Request from the joining node to the one known node:
@@ -127,6 +144,9 @@ requesting the key-value pairs for backup:
 Note that the key-value pairs are backups from the joining node's viewpoint,
 but primary (leader) pairs from the receiver's viewpoint.
 
+This same request is also used in fault tolerance by a node
+to request the leader keys of itself.
+
 The response:
 
 * message type, one byte, value `0`
@@ -145,6 +165,72 @@ The announcement from the joining node to every other node:
 * ID of the joining node, 8 big-endian bytes
 
 The acknowledgement response from another node to the joining node:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
+
+## Fault tolerance
+
+The message to a node indicating that the receiver's smaller neighbor is down
+(also greater neighbor when the crashed node was the greatest in the ring):
+
+* message type, one byte, value `30`
+* message total length, four big-endian bytes (value always `13`)
+* the ID of the crashed node, 8 big-endian bytes
+
+Response to this message acknowledging that the fault is handled:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
+
+
+The message from a node to everybody announcing that a certain node is down:
+
+* message type, one byte, value `31`
+* message total length, four big-endian bytes (value always `13`)
+* the ID of the crashed node, 8 big-endian bytes
+
+Response to this announcement:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes (value always `7`)
+* two constant bytes, `[111, 107]`
+
+
+
+Internal request from a node to itself to remove and respond the backup
+key-value pairs for a certain key range:
+
+* message type, one byte, value `32`
+* message total length, four big-endian bytes (value always `21`)
+* inclusive lower bound of the keys to transfer, 8 big-endian bytes
+* inclusive upper bound of the keys to transfer, 8 big-endian bytes
+
+The response:
+
+* message type, one byte, value `0`
+* message total length, four big-endian bytes
+* zero or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value
+
+
+
+Internal request from a node to itself to save a set of new key-value pairs to leader storage:
+
+* message type, one byte, value `33`
+* message total length, four big-endian bytes
+* zero or more of these items:
+    * the key, 8 big-endian bytes
+    * value length, four big-endian bytes
+    * the value
+
+Response to this request:
 
 * message type, one byte, value `0`
 * message total length, four big-endian bytes (value always `7`)
