@@ -2,7 +2,7 @@
 
 ## Installation and usage
 
-You need [Rust]() 2021 edition or later.
+You need [Rust](https://www.rust-lang.org/tools/install) 2021 edition or later.
 Run
 
 ```sh
@@ -27,7 +27,7 @@ Instead of building and running the application directly, you can build a Docker
 docker build -t ds-project .
 ```
 
-Then you can run start a Docker container with
+Then you can start a Docker container with
 
 ```sh
 docker run -p 52525:52525 ds-project
