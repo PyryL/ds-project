@@ -32,3 +32,13 @@ Then you can start a Docker container with
 ```sh
 docker run -p 52525:52525 ds-project
 ```
+
+### Client
+
+Although the client using the key-value store is out from the scope of this project,
+a simple client written in Python (version 3.11 or later) is included for demonstration purposes.
+For more information, run
+
+```sh
+python client/main.py --help
+```
