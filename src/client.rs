@@ -1,4 +1,4 @@
-use crate::communication::IncomingConnection;
+use crate::{communication::IncomingConnection, fault_tolerance::send_node_down};
 use crate::PeerNode;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
@@ -36,22 +36,44 @@ async fn forward_read_request(
     }
     let key = u64::from_be_bytes(message[5..13].try_into().unwrap());
 
+    let forwarded_message = [vec![1, 0, 0, 0, 13], key.to_be_bytes().to_vec()].concat();
+
     // forward the request to the leader node
-    let leader_node;
+    let node_list;
     {
-        let node_list = node_list_arc.lock().await;
-        leader_node = leader_node_for_key(&node_list, key);
+        node_list = node_list_arc.lock().await.clone();
     }
+
+    let leader_node = leader_node_for_key(&node_list, key);
+
+    let mut leader_connection = match IncomingConnection::new(leader_node.ip_address, &forwarded_message).await {
+        Ok(connection) => connection,
+        Err(_) => {
+            // leader node was down, handle fault and retry
+            send_node_down(leader_node.id, &node_list).await;
+
+            let node_list;
+            {
+                node_list = node_list_arc.lock().await.clone();
+            }
+            let leader_node = leader_node_for_key(&node_list, key);
+
+            match IncomingConnection::new(leader_node.ip_address, &forwarded_message).await {
+                Ok(connection) => connection,
+                Err(_) => {
+                    println!("found two crashed nodes during forwarding, dropping");
+                    return
+                }
+            }
+        }
+    };
+
     println!(
         "forwarding read request {} -> {}",
-        client_connection.address, leader_node.ip_address
+        client_connection.address, leader_connection.address
     );
-    let forwarded_message = [vec![1, 0, 0, 0, 13], key.to_be_bytes().to_vec()].concat();
-    let leader_response = IncomingConnection::new(leader_node.ip_address, &forwarded_message)
-        .await
-        .unwrap()
-        .read_message()
-        .await;
+
+    let leader_response = leader_connection.read_message().await;
 
     // forward response to the client
     client_connection.send_message(&leader_response).await;
