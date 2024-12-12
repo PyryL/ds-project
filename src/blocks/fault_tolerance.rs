@@ -5,7 +5,7 @@ use crate::PeerNode;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
-pub async fn fault_tolerance(
+pub async fn fault_tolerance_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
     node_list: Arc<Mutex<Vec<PeerNode>>>,
     this_node_id: u64,

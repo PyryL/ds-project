@@ -3,14 +3,11 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::StreamExt;
 
-mod backup;
-mod client;
+mod blocks;
 mod communication;
-mod fault_tolerance;
 mod helpers;
 mod join;
 mod leader;
-mod peer;
 
 #[derive(Debug, Clone)]
 pub struct PeerNode {
@@ -40,27 +37,27 @@ pub async fn start_node(known_node_host: Option<String>) {
     let client_sender = Arc::new(client_sender);
     let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        client::client_block(client_receiver, node_list_clone).await;
+        blocks::client::client_block(client_receiver, node_list_clone).await;
     });
 
     let (peer_sender, peer_receiver) = mpsc::unbounded_channel();
     let peer_sender = Arc::new(peer_sender);
     let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        peer::peer_block(peer_receiver, node_list_clone).await;
+        blocks::peer::peer_block(peer_receiver, node_list_clone).await;
     });
 
     let (backup_sender, backup_receiver) = mpsc::unbounded_channel();
     let backup_sender = Arc::new(backup_sender);
     tokio::task::spawn(async move {
-        backup::backup_block(backup_receiver, initial_backup_kv_pairs).await;
+        blocks::backup::backup_block(backup_receiver, initial_backup_kv_pairs).await;
     });
 
     let (fault_tolerance_sender, fault_tolerance_receiver) = mpsc::unbounded_channel();
     let fault_tolerance_sender = Arc::new(fault_tolerance_sender);
     let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        fault_tolerance::fault_tolerance(fault_tolerance_receiver, node_list_clone, this_node_id)
+        blocks::fault_tolerance::fault_tolerance_block(fault_tolerance_receiver, node_list_clone, this_node_id)
             .await;
     });
 
