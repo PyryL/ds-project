@@ -2,6 +2,7 @@ use crate::helpers::communication::Connection;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
+/// Handles incoming requests related to the backups kept by this node.
 pub async fn backup_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     initial_key_value_pairs: Vec<(u64, Vec<u8>)>,
@@ -22,6 +23,7 @@ pub async fn backup_block(
     }
 }
 
+/// Handles an incoming request asking this node to write a single value to its backup.
 async fn handle_write_request(
     mut connection: Connection,
     message: Vec<u8>,
@@ -46,6 +48,7 @@ async fn handle_write_request(
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
+/// Handles an incoming request asking this node to write multiple values to its backup.
 async fn handle_array_write_request(
     mut connection: Connection,
     message: Vec<u8>,
@@ -79,6 +82,8 @@ async fn handle_array_write_request(
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
+/// Handles an incoming request asking this node to remove
+/// and respond a range of key-value pairs from the backup.
 pub async fn handle_transfer_request(
     mut connection: Connection,
     message: Vec<u8>,

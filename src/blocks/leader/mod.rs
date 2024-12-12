@@ -11,6 +11,7 @@ use tokio::sync::{mpsc, Mutex};
 mod backup;
 mod handlers;
 
+/// Handles incoming requests related to the primary key-value pairs stored by this node.
 pub async fn leader_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     initial_kv_pairs: Vec<(u64, Vec<u8>)>,

@@ -5,6 +5,7 @@ use crate::PeerNode;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
+/// Handles incoming requests related to nodes crashing.
 pub async fn fault_tolerance_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     node_list: Arc<Mutex<Vec<PeerNode>>>,
@@ -26,6 +27,7 @@ pub async fn fault_tolerance_block(
     }
 }
 
+/// Send a message to right recipient informing that a node with the given ID has crashed.
 pub async fn send_node_down(crashed_node_id: u64, node_list: &Vec<PeerNode>) {
     // the message must be sent to the greater neighbor of the crashed node
     // if the crashed node was greatest in the ring, send the message to its smaller neighbor
@@ -59,6 +61,7 @@ pub async fn send_node_down(crashed_node_id: u64, node_list: &Vec<PeerNode>) {
     }
 }
 
+/// Handles an incoming request informing that the neighbor of this node has crashed.
 async fn handle_neighbor_down(
     mut connection: Connection,
     message: Vec<u8>,
@@ -113,6 +116,7 @@ async fn handle_neighbor_down(
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
+/// Handles an incoming request informing that a node has leaved the ring.
 async fn handle_peer_deannouncement(
     mut connection: Connection,
     message: Vec<u8>,
@@ -165,6 +169,7 @@ async fn handle_peer_deannouncement(
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
+/// Sends a message to every node in the system informing that a node with the given ID has left the ring.
 async fn deannounce_down_peer(down_peer_id: u64, node_list: &Vec<PeerNode>) {
     let message = [vec![31, 0, 0, 0, 13], down_peer_id.to_be_bytes().to_vec()].concat();
 
@@ -199,6 +204,8 @@ async fn deannounce_down_peer(down_peer_id: u64, node_list: &Vec<PeerNode>) {
     }
 }
 
+/// Moves a range of key-value pairs internally from the backup to the primary storage of this node
+/// as a fault tolerance action after a node with the given node crashed.
 /// Node list should still contain the crashed node.
 async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerNode>) {
     // find the neighbors of the crashed node
@@ -254,6 +261,7 @@ async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerN
     }
 }
 
+/// Send all of the key-value pairs from the primary storage of this node to the given peer for backup.
 async fn create_new_backup_replica(new_backup_node: PeerNode) {
     // request the leader key-value pairs from this node itself
     let leader_request = [12, 0, 0, 0, 5];

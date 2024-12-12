@@ -6,7 +6,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::Stream;
 
 /// Infinitely listens to incoming connections.
-/// For every connection, sends `IncomingConnection` to the returned stream.
+/// For every connection, sends `Connection` to the returned stream.
 pub async fn listen_messages() -> impl Stream<Item = Connection> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -22,6 +22,7 @@ pub async fn listen_messages() -> impl Stream<Item = Connection> {
     UnboundedReceiverStream::new(rx)
 }
 
+/// Returns the IPv4 address that corresponds to the given hostname, if any.
 pub fn resolve_hostname_to_ip_address(hostname: &str) -> Option<String> {
     let addresses = match format!("{}:52525", hostname).to_socket_addrs() {
         Ok(addrs) => addrs,

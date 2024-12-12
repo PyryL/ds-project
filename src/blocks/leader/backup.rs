@@ -37,6 +37,7 @@ pub async fn push_update_to_backups(
     true
 }
 
+/// Sends a message to the given node asking it to write the given key-value pair to its backup storage.
 async fn send_backup_message(ip_address: String, key: u64, value: Vec<u8>) -> bool {
     let request_length = value.len() as u32 + 13;
     let request = [

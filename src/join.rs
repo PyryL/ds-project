@@ -4,6 +4,7 @@ use crate::PeerNode;
 use rand::{thread_rng, Rng};
 use std::ops::RangeInclusive;
 
+/// Runs the join sequence of communications to become a member of the system.
 /// Returns this node ID, node list and initial leader and backup key-value pairs.
 pub async fn run_join_procedure(
     known_node_host: Option<&str>,

@@ -4,6 +4,7 @@ use crate::blocks::fault_tolerance::send_node_down;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
+/// Handles incoming requests from clients wanting to perform operations in the datastore.
 pub async fn client_block(
     mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     node_list: Arc<Mutex<Vec<PeerNode>>>,
@@ -25,6 +26,8 @@ pub async fn client_block(
     }
 }
 
+/// Handles an incoming read request from a client
+/// by forwarding the conversation between the client and a leader node.
 async fn forward_read_request(
     mut client_connection: Connection,
     message: Vec<u8>,
@@ -81,6 +84,8 @@ async fn forward_read_request(
     client_connection.send_message(&leader_response).await;
 }
 
+/// Handles an incoming write request from a client
+/// by forwarding the conversation between the client and a leader node.
 async fn forward_write_request(
     mut client_connection: Connection,
     message: Vec<u8>,

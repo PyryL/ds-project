@@ -14,10 +14,12 @@ pub struct PeerNode {
 }
 
 pub async fn start_node(known_node_host: Option<String>) {
+    // run the join sequence of communications
     let (this_node_id, node_list, initial_leader_kv_pairs, initial_backup_kv_pairs) =
         join::run_join_procedure(known_node_host.as_deref()).await;
     let node_list = Arc::new(Mutex::new(node_list));
 
+    // start the blocks
     let (leader_sender, leader_receiver) = mpsc::unbounded_channel();
     let leader_sender = Arc::new(leader_sender);
     let node_list_clone = Arc::clone(&node_list);
@@ -59,6 +61,7 @@ pub async fn start_node(known_node_host: Option<String>) {
             .await;
     });
 
+    // infinitely listen for incoming connections and direct them to respective blocks
     let mut incoming_connections_stream = listen_messages().await;
 
     while let Some(mut connection) = incoming_connections_stream.next().await {
