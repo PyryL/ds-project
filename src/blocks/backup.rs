@@ -1,9 +1,9 @@
-use crate::communication::IncomingConnection;
+use crate::communication::Connection;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
 pub async fn backup_block(
-    mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
+    mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     initial_key_value_pairs: Vec<(u64, Vec<u8>)>,
 ) {
     let mut backup_storage: HashMap<u64, Vec<u8>> = HashMap::new();
@@ -23,7 +23,7 @@ pub async fn backup_block(
 }
 
 async fn handle_write_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     backup_storage: &mut HashMap<u64, Vec<u8>>,
 ) {
@@ -47,7 +47,7 @@ async fn handle_write_request(
 }
 
 async fn handle_array_write_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     backup_storage: &mut HashMap<u64, Vec<u8>>,
 ) {
@@ -80,7 +80,7 @@ async fn handle_array_write_request(
 }
 
 pub async fn handle_transfer_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     storage: &mut HashMap<u64, Vec<u8>>,
 ) {

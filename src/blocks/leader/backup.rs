@@ -1,5 +1,5 @@
 use crate::{
-    communication::IncomingConnection,
+    communication::Connection,
     helpers::neighbors::find_neighbors_wrapping, PeerNode,
 };
 use crate::blocks::fault_tolerance::send_node_down;
@@ -47,7 +47,7 @@ async fn send_backup_message(ip_address: String, key: u64, value: Vec<u8>) -> bo
     ]
     .concat();
 
-    let mut connection = match IncomingConnection::new(ip_address, &request).await {
+    let mut connection = match Connection::new(ip_address, &request).await {
         Ok(conn) => conn,
         Err(_) => return false,
     };

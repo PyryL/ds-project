@@ -1,12 +1,12 @@
 use super::backup::push_update_to_backups;
-use crate::communication::IncomingConnection;
+use crate::communication::Connection;
 use crate::PeerNode;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub async fn handle_read_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 ) {
@@ -32,7 +32,7 @@ pub async fn handle_read_request(
 }
 
 pub async fn handle_write_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     first_message: Vec<u8>,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
     this_node_id: u64,
@@ -101,7 +101,7 @@ pub async fn handle_write_request(
 }
 
 pub async fn handle_transfer_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 ) {
@@ -149,7 +149,7 @@ pub async fn handle_transfer_request(
 }
 
 pub async fn handle_backup_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 ) {
     // message was [12, 0, 0, 0, 5]
@@ -190,7 +190,7 @@ pub async fn handle_backup_request(
 }
 
 pub async fn handle_fault_tolerance_insertion(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 ) {

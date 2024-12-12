@@ -1,11 +1,11 @@
 use crate::PeerNode;
-use crate::communication::IncomingConnection;
+use crate::communication::Connection;
 use crate::blocks::fault_tolerance::send_node_down;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
 pub async fn client_block(
-    mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
+    mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     node_list: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     while let Some((client_connection, message)) = incoming_connection_stream.recv().await {
@@ -26,7 +26,7 @@ pub async fn client_block(
 }
 
 async fn forward_read_request(
-    mut client_connection: IncomingConnection,
+    mut client_connection: Connection,
     message: Vec<u8>,
     node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
@@ -48,7 +48,7 @@ async fn forward_read_request(
     let leader_node = leader_node_for_key(&node_list, key);
 
     let mut leader_connection =
-        match IncomingConnection::new(leader_node.ip_address, &forwarded_message).await {
+        match Connection::new(leader_node.ip_address, &forwarded_message).await {
             Ok(connection) => connection,
             Err(_) => {
                 // leader node was down, handle fault and retry
@@ -60,7 +60,7 @@ async fn forward_read_request(
                 }
                 let leader_node = leader_node_for_key(&node_list, key);
 
-                match IncomingConnection::new(leader_node.ip_address, &forwarded_message).await {
+                match Connection::new(leader_node.ip_address, &forwarded_message).await {
                     Ok(connection) => connection,
                     Err(_) => {
                         println!("found two crashed nodes during forwarding, dropping");
@@ -82,7 +82,7 @@ async fn forward_read_request(
 }
 
 async fn forward_write_request(
-    mut client_connection: IncomingConnection,
+    mut client_connection: Connection,
     message: Vec<u8>,
     node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
@@ -103,7 +103,7 @@ async fn forward_write_request(
     let leader_node = leader_node_for_key(&node_list, key);
 
     let mut leader_connection =
-        match IncomingConnection::new(leader_node.ip_address, &forwarded_message).await {
+        match Connection::new(leader_node.ip_address, &forwarded_message).await {
             Ok(connection) => connection,
             Err(_) => {
                 // leader node was down, handle fault and retry
@@ -115,7 +115,7 @@ async fn forward_write_request(
                 }
                 let leader_node = leader_node_for_key(&node_list, key);
 
-                match IncomingConnection::new(leader_node.ip_address, &forwarded_message).await {
+                match Connection::new(leader_node.ip_address, &forwarded_message).await {
                     Ok(connection) => connection,
                     Err(_) => {
                         println!("found two crashed nodes during forwarding, dropping");
