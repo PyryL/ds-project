@@ -1,5 +1,5 @@
 use super::backup::push_update_to_backups;
-use crate::communication::Connection;
+use crate::helpers::communication::Connection;
 use crate::PeerNode;
 use std::collections::HashMap;
 use std::sync::Arc;

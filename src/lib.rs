@@ -1,10 +1,9 @@
-use communication::listen_messages;
+use crate::helpers::communication::listen_messages;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::StreamExt;
 
 mod blocks;
-mod communication;
 mod helpers;
 mod join;
 

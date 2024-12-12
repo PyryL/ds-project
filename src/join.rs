@@ -1,4 +1,4 @@
-use crate::communication::{resolve_hostname_to_ip_address, Connection};
+use crate::helpers::communication::{resolve_hostname_to_ip_address, Connection};
 use crate::helpers::neighbors::{find_neighbors_nonwrapping, find_neighbors_wrapping};
 use crate::PeerNode;
 use rand::{thread_rng, Rng};

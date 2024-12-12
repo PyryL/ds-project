@@ -1,5 +1,5 @@
 use crate::PeerNode;
-use crate::communication::Connection;
+use crate::helpers::communication::Connection;
 use crate::blocks::fault_tolerance::send_node_down;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};

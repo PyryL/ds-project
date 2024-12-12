@@ -1,4 +1,4 @@
-use crate::communication::Connection;
+use crate::helpers::communication::Connection;
 use crate::helpers::neighbors::find_neighbors_nonwrapping;
 use crate::helpers::neighbors::find_neighbors_wrapping;
 use crate::PeerNode;

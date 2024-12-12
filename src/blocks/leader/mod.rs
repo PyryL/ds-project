@@ -1,4 +1,4 @@
-use crate::communication::Connection;
+use crate::helpers::communication::Connection;
 use crate::PeerNode;
 use handlers::{
     handle_backup_request, handle_fault_tolerance_insertion, handle_read_request,

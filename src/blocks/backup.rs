@@ -1,4 +1,4 @@
-use crate::communication::Connection;
+use crate::helpers::communication::Connection;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
