@@ -7,7 +7,6 @@ mod blocks;
 mod communication;
 mod helpers;
 mod join;
-mod leader;
 
 #[derive(Debug, Clone)]
 pub struct PeerNode {
@@ -24,7 +23,7 @@ pub async fn start_node(known_node_host: Option<String>) {
     let leader_sender = Arc::new(leader_sender);
     let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        leader::leader_block(
+        blocks::leader::leader_block(
             leader_receiver,
             initial_leader_kv_pairs,
             node_list_clone,
