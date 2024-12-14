@@ -4,6 +4,7 @@ Below is described the structure of the messages being sent and received by the 
 Each message starts with the same 5 bytes (one message type + four total length)
 followed by the payload.
 Message type is set to `0` when it can be deduced from the previous messages on that same connection stream.
+The parts of a message listed below are simply concatenated together.
 
 ## Read
 
