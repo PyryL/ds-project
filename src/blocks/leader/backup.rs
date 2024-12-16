@@ -1,7 +1,6 @@
-use crate::{
-    communication::IncomingConnection, fault_tolerance::send_node_down,
-    helpers::neighbors::find_neighbors_wrapping, PeerNode,
-};
+use crate::blocks::fault_tolerance::send_node_down;
+use crate::helpers::communication::Connection;
+use crate::{helpers::neighbors::find_neighbors_wrapping, PeerNode};
 
 /// Pushes the update to both backup neighbors and handles possible crashed nodes.
 /// Returns `true` if the update was propagated to both backups, `false` otherwise.
@@ -36,6 +35,7 @@ pub async fn push_update_to_backups(
     true
 }
 
+/// Sends a message to the given node asking it to write the given key-value pair to its backup storage.
 async fn send_backup_message(ip_address: String, key: u64, value: Vec<u8>) -> bool {
     let request_length = value.len() as u32 + 13;
     let request = [
@@ -46,7 +46,7 @@ async fn send_backup_message(ip_address: String, key: u64, value: Vec<u8>) -> bo
     ]
     .concat();
 
-    let mut connection = match IncomingConnection::new(ip_address, &request).await {
+    let mut connection = match Connection::new(ip_address, &request).await {
         Ok(conn) => conn,
         Err(_) => return false,
     };

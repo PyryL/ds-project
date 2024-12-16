@@ -1,4 +1,4 @@
-use crate::communication::IncomingConnection;
+use crate::helpers::communication::Connection;
 use crate::PeerNode;
 use handlers::{
     handle_backup_request, handle_fault_tolerance_insertion, handle_read_request,
@@ -11,8 +11,9 @@ use tokio::sync::{mpsc, Mutex};
 mod backup;
 mod handlers;
 
+/// Handles incoming requests related to the primary key-value pairs stored by this node.
 pub async fn leader_block(
-    mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
+    mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     initial_kv_pairs: Vec<(u64, Vec<u8>)>,
     node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
     this_node_id: u64,

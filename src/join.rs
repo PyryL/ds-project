@@ -1,9 +1,10 @@
-use crate::communication::{resolve_hostname_to_ip_address, IncomingConnection};
+use crate::helpers::communication::{resolve_hostname_to_ip_address, Connection};
 use crate::helpers::neighbors::{find_neighbors_nonwrapping, find_neighbors_wrapping};
 use crate::PeerNode;
 use rand::{thread_rng, Rng};
 use std::ops::RangeInclusive;
 
+/// Runs the join sequence of communications to become a member of the system.
 /// Returns this node ID, node list and initial leader and backup key-value pairs.
 pub async fn run_join_procedure(
     known_node_host: Option<&str>,
@@ -74,10 +75,9 @@ pub async fn run_join_procedure(
 }
 
 async fn request_node_list(known_node_ip_address: &str) -> Vec<PeerNode> {
-    let mut connection =
-        IncomingConnection::new(known_node_ip_address.to_string(), &[10, 0, 0, 0, 5])
-            .await
-            .unwrap();
+    let mut connection = Connection::new(known_node_ip_address.to_string(), &[10, 0, 0, 0, 5])
+        .await
+        .unwrap();
 
     let response = connection.read_message().await;
 
@@ -124,7 +124,7 @@ async fn request_primary_kv_pairs(
     ]
     .concat();
 
-    let mut connection = IncomingConnection::new(neighbor.ip_address.clone(), &request)
+    let mut connection = Connection::new(neighbor.ip_address.clone(), &request)
         .await
         .unwrap();
 
@@ -157,7 +157,7 @@ async fn request_backup_kv_pairs(neighbor: &PeerNode) -> Vec<(u64, Vec<u8>)> {
 
     // make request
     let request = [12, 0, 0, 0, 5];
-    let mut connection = IncomingConnection::new(neighbor.ip_address.to_string(), &request)
+    let mut connection = Connection::new(neighbor.ip_address.to_string(), &request)
         .await
         .unwrap();
 
@@ -186,7 +186,7 @@ async fn request_backup_kv_pairs(neighbor: &PeerNode) -> Vec<(u64, Vec<u8>)> {
 async fn announce_joining(this_node_id: u64, peer_node_ip_address: String) {
     let request = [vec![13, 0, 0, 0, 13], this_node_id.to_be_bytes().to_vec()].concat();
 
-    let mut connection = IncomingConnection::new(peer_node_ip_address, &request)
+    let mut connection = Connection::new(peer_node_ip_address, &request)
         .await
         .unwrap();
 

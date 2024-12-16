@@ -1,12 +1,13 @@
 use super::backup::push_update_to_backups;
-use crate::communication::IncomingConnection;
+use crate::helpers::communication::Connection;
 use crate::PeerNode;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Handles an incoming request asking the value for a key for which this node is the leader.
 pub async fn handle_read_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 ) {
@@ -31,8 +32,9 @@ pub async fn handle_read_request(
     connection.send_message(&response).await;
 }
 
+/// Handles an incoming request asking to write the value for a key for which this node is the leader.
 pub async fn handle_write_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     first_message: Vec<u8>,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
     this_node_id: u64,
@@ -100,8 +102,10 @@ pub async fn handle_write_request(
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
+/// Handles an incoming request that asks this node to remove
+/// and respond a range of keys from the primary storage.
 pub async fn handle_transfer_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 ) {
@@ -148,8 +152,10 @@ pub async fn handle_transfer_request(
     connection.send_message(&response).await;
 }
 
+/// Handles an incoming request asking a copy of
+/// all the key-value pairs stored in the primary storage of this node.
 pub async fn handle_backup_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 ) {
     // message was [12, 0, 0, 0, 5]
@@ -189,8 +195,10 @@ pub async fn handle_backup_request(
     println!("backup transfer done");
 }
 
+/// Handles an incoming request asking an array of
+/// key-value pairs to be inserted into the primary storage of this node.
 pub async fn handle_fault_tolerance_insertion(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 ) {

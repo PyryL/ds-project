@@ -1,12 +1,13 @@
-use crate::communication::IncomingConnection;
+use crate::helpers::communication::Connection;
 use crate::helpers::neighbors::find_neighbors_nonwrapping;
 use crate::helpers::neighbors::find_neighbors_wrapping;
 use crate::PeerNode;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
-pub async fn fault_tolerance(
-    mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
+/// Handles incoming requests related to nodes crashing.
+pub async fn fault_tolerance_block(
+    mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     node_list: Arc<Mutex<Vec<PeerNode>>>,
     this_node_id: u64,
 ) {
@@ -26,6 +27,7 @@ pub async fn fault_tolerance(
     }
 }
 
+/// Send a message to right recipient informing that a node with the given ID has crashed.
 pub async fn send_node_down(crashed_node_id: u64, node_list: &Vec<PeerNode>) {
     // the message must be sent to the greater neighbor of the crashed node
     // if the crashed node was greatest in the ring, send the message to its smaller neighbor
@@ -48,7 +50,7 @@ pub async fn send_node_down(crashed_node_id: u64, node_list: &Vec<PeerNode>) {
     ]
     .concat();
 
-    let mut connection = IncomingConnection::new(recipient.ip_address, &request)
+    let mut connection = Connection::new(recipient.ip_address, &request)
         .await
         .unwrap();
 
@@ -59,8 +61,9 @@ pub async fn send_node_down(crashed_node_id: u64, node_list: &Vec<PeerNode>) {
     }
 }
 
+/// Handles an incoming request informing that the neighbor of this node has crashed.
 async fn handle_neighbor_down(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
@@ -113,8 +116,9 @@ async fn handle_neighbor_down(
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
+/// Handles an incoming request informing that a node has leaved the ring.
 async fn handle_peer_deannouncement(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
     this_node_id: u64,
@@ -165,6 +169,7 @@ async fn handle_peer_deannouncement(
     connection.send_message(&[0, 0, 0, 0, 7, 111, 107]).await;
 }
 
+/// Sends a message to every node in the system informing that a node with the given ID has left the ring.
 async fn deannounce_down_peer(down_peer_id: u64, node_list: &Vec<PeerNode>) {
     let message = [vec![31, 0, 0, 0, 13], down_peer_id.to_be_bytes().to_vec()].concat();
 
@@ -179,7 +184,7 @@ async fn deannounce_down_peer(down_peer_id: u64, node_list: &Vec<PeerNode>) {
         let message_clone = message.clone();
 
         let handle = tokio::task::spawn(async move {
-            let mut connection = IncomingConnection::new(peer_ip_address_clone, &message_clone)
+            let mut connection = Connection::new(peer_ip_address_clone, &message_clone)
                 .await
                 .unwrap();
 
@@ -199,6 +204,8 @@ async fn deannounce_down_peer(down_peer_id: u64, node_list: &Vec<PeerNode>) {
     }
 }
 
+/// Moves a range of key-value pairs internally from the backup to the primary storage of this node
+/// as a fault tolerance action after a node with the given node crashed.
 /// Node list should still contain the crashed node.
 async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerNode>) {
     // find the neighbors of the crashed node
@@ -228,7 +235,7 @@ async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerN
     ]
     .concat();
 
-    let mut backup_connection = IncomingConnection::new("127.0.0.1".to_string(), &backup_request)
+    let mut backup_connection = Connection::new("127.0.0.1".to_string(), &backup_request)
         .await
         .unwrap();
 
@@ -242,7 +249,7 @@ async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerN
     // send request to add leader pairs
     let leader_request = [vec![33], backup_response[1..].to_vec()].concat();
 
-    let mut leader_connection = IncomingConnection::new("127.0.0.1".to_string(), &leader_request)
+    let mut leader_connection = Connection::new("127.0.0.1".to_string(), &leader_request)
         .await
         .unwrap();
 
@@ -254,10 +261,11 @@ async fn transfer_from_backup_to_leader(down_peer_id: u64, node_list: &Vec<PeerN
     }
 }
 
+/// Send all of the key-value pairs from the primary storage of this node to the given peer for backup.
 async fn create_new_backup_replica(new_backup_node: PeerNode) {
     // request the leader key-value pairs from this node itself
     let leader_request = [12, 0, 0, 0, 5];
-    let mut leader_connection = IncomingConnection::new("127.0.0.1".to_string(), &leader_request)
+    let mut leader_connection = Connection::new("127.0.0.1".to_string(), &leader_request)
         .await
         .unwrap();
 
@@ -265,10 +273,9 @@ async fn create_new_backup_replica(new_backup_node: PeerNode) {
 
     // send the leader pairs of this node to the new backup node
     let backup_request = [vec![21], leader_response[1..].to_vec()].concat();
-    let mut backup_connection =
-        IncomingConnection::new(new_backup_node.ip_address, &backup_request)
-            .await
-            .unwrap();
+    let mut backup_connection = Connection::new(new_backup_node.ip_address, &backup_request)
+        .await
+        .unwrap();
     let backup_response = backup_connection.read_message().await;
 
     if backup_response != [0, 0, 0, 0, 7, 111, 107] {

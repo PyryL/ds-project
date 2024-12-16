@@ -1,9 +1,11 @@
-use crate::{communication::IncomingConnection, PeerNode};
+use crate::helpers::communication::Connection;
+use crate::PeerNode;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
+/// Handles incoming requests related to new peer nodes joining the ring.
 pub async fn peer_block(
-    mut incoming_connection_stream: mpsc::UnboundedReceiver<(IncomingConnection, Vec<u8>)>,
+    mut incoming_connection_stream: mpsc::UnboundedReceiver<(Connection, Vec<u8>)>,
     node_list: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     while let Some((connection, message)) = incoming_connection_stream.recv().await {
@@ -17,8 +19,9 @@ pub async fn peer_block(
     }
 }
 
+/// Handles an incoming request that asks the list of nodes in the system.
 async fn handle_node_list_request(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
     // at this point the first byte of message is 10
@@ -44,8 +47,9 @@ async fn handle_node_list_request(
         .await;
 }
 
+/// Handles an incoming request that announces a new node has joined the ring.
 async fn handle_join_announcement(
-    mut connection: IncomingConnection,
+    mut connection: Connection,
     message: Vec<u8>,
     node_list_arc: Arc<Mutex<Vec<PeerNode>>>,
 ) {
