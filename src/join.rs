@@ -75,10 +75,9 @@ pub async fn run_join_procedure(
 }
 
 async fn request_node_list(known_node_ip_address: &str) -> Vec<PeerNode> {
-    let mut connection =
-        Connection::new(known_node_ip_address.to_string(), &[10, 0, 0, 0, 5])
-            .await
-            .unwrap();
+    let mut connection = Connection::new(known_node_ip_address.to_string(), &[10, 0, 0, 0, 5])
+        .await
+        .unwrap();
 
     let response = connection.read_message().await;
 

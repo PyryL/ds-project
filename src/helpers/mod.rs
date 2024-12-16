@@ -1,2 +1,2 @@
-pub mod neighbors;
 pub mod communication;
+pub mod neighbors;

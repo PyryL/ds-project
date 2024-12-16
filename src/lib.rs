@@ -57,8 +57,12 @@ pub async fn start_node(known_node_host: Option<String>) {
     let fault_tolerance_sender = Arc::new(fault_tolerance_sender);
     let node_list_clone = Arc::clone(&node_list);
     tokio::task::spawn(async move {
-        blocks::fault_tolerance::fault_tolerance_block(fault_tolerance_receiver, node_list_clone, this_node_id)
-            .await;
+        blocks::fault_tolerance::fault_tolerance_block(
+            fault_tolerance_receiver,
+            node_list_clone,
+            this_node_id,
+        )
+        .await;
     });
 
     // infinitely listen for incoming connections and direct them to respective blocks

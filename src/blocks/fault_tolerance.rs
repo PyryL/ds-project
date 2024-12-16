@@ -273,10 +273,9 @@ async fn create_new_backup_replica(new_backup_node: PeerNode) {
 
     // send the leader pairs of this node to the new backup node
     let backup_request = [vec![21], leader_response[1..].to_vec()].concat();
-    let mut backup_connection =
-        Connection::new(new_backup_node.ip_address, &backup_request)
-            .await
-            .unwrap();
+    let mut backup_connection = Connection::new(new_backup_node.ip_address, &backup_request)
+        .await
+        .unwrap();
     let backup_response = backup_connection.read_message().await;
 
     if backup_response != [0, 0, 0, 0, 7, 111, 107] {

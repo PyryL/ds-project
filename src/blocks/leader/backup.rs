@@ -1,8 +1,6 @@
-use crate::{
-    helpers::neighbors::find_neighbors_wrapping, PeerNode,
-};
-use crate::helpers::communication::Connection;
 use crate::blocks::fault_tolerance::send_node_down;
+use crate::helpers::communication::Connection;
+use crate::{helpers::neighbors::find_neighbors_wrapping, PeerNode};
 
 /// Pushes the update to both backup neighbors and handles possible crashed nodes.
 /// Returns `true` if the update was propagated to both backups, `false` otherwise.
